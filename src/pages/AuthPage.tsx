@@ -50,11 +50,11 @@ export function AuthPage() {
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">2</span>
-            <span>Choose the 12 that matter most</span>
+            <span>Choose 10–20 that matter most</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">3</span>
-            <span>Complete all 12 every day for 100 days</span>
+            <span>Complete all of them every day for 100 days</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">4</span>

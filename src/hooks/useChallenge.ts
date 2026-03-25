@@ -3,7 +3,9 @@ import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
 
 export const REQUIRED_ITEMS = 100
-export const REQUIRED_TOP = 12
+/** Daily habits to track: pick between min and max for the 100-day run */
+export const MIN_TOP = 10
+export const MAX_TOP = 20
 export const REQUIRED_DAYS = 100
 
 export interface Item {
@@ -68,7 +70,8 @@ export function useChallenge() {
   const phase: Phase = useMemo(() => {
     if (loading) return 'loading'
     if (items.length < REQUIRED_ITEMS) return 'setup'
-    if (topTwelve.length < REQUIRED_TOP) return 'select'
+    const n = topTwelve.length
+    if (n < MIN_TOP || n > MAX_TOP) return 'select'
     return 'ready'
   }, [loading, items.length, topTwelve.length])
 
@@ -187,6 +190,7 @@ export function useChallenge() {
   const saveTopTwelve = useCallback(
     async (selectedIds: string[]) => {
       if (!user) return
+      if (selectedIds.length < MIN_TOP || selectedIds.length > MAX_TOP) return
       await supabase
         .from('items')
         .update({ is_top_twelve: false })
@@ -236,7 +240,7 @@ export function useChallenge() {
         : currentIds.filter(id => id !== itemId)
 
       const allDone =
-        topTwelve.length === REQUIRED_TOP &&
+        topTwelve.length > 0 &&
         topTwelve.every(item => newIds.includes(item.id))
 
       const updatedLog = { ...log, completed_item_ids: newIds, all_completed: allDone }

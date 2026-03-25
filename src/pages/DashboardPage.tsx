@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { useChallenge, REQUIRED_TOP, REQUIRED_DAYS } from '../hooks/useChallenge'
+import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
@@ -54,8 +54,9 @@ export function DashboardPage() {
   if (phase === 'setup') return <Navigate to="/setup" replace />
   if (phase === 'select') return <Navigate to="/select" replace />
 
+  const dailyTotal = topTwelve.length
   const completedCount = topTwelve.filter(item => completedIds.has(item.id)).length
-  const progressPct = (completedCount / REQUIRED_TOP) * 100
+  const progressPct = dailyTotal > 0 ? (completedCount / dailyTotal) * 100 : 0
 
   return (
     <div className="dashboard">
@@ -74,7 +75,7 @@ export function DashboardPage() {
 
       <div className="dashboard__progress-section">
         <div className="dashboard__progress-label">
-          {completedCount} of {REQUIRED_TOP} complete today
+          {completedCount} of {dailyTotal} complete today
         </div>
         <div className="dashboard__progress-bar">
           <div
