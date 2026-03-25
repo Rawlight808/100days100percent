@@ -1,5 +1,9 @@
 import { useCallback, useRef } from 'react'
 
+/** Files in public/sounds/ — encode for spaces / case in URLs */
+const ITEM_CHECK_SRC = `/sounds/${encodeURIComponent('ITEM CHECK.mp3')}`
+const ITEM_COMPLETE_SRC = `/sounds/${encodeURIComponent('ITEM COMPLETE.mp3')}`
+
 function preload(src: string): HTMLAudioElement {
   const audio = new Audio(src)
   audio.preload = 'auto'
@@ -8,12 +12,12 @@ function preload(src: string): HTMLAudioElement {
 
 export function useCompletionSound() {
   const checkPool = useRef<HTMLAudioElement[]>([])
-  const fanfareRef = useRef<HTMLAudioElement | null>(null)
+  const completeRef = useRef<HTMLAudioElement | null>(null)
 
   const getCheckAudio = useCallback(() => {
     if (checkPool.current.length === 0) {
       for (let i = 0; i < 4; i++) {
-        checkPool.current.push(preload('/sounds/cash-register.wav'))
+        checkPool.current.push(preload(ITEM_CHECK_SRC))
       }
     }
     const available = checkPool.current.find(a => a.paused || a.ended)
@@ -21,7 +25,7 @@ export function useCompletionSound() {
       available.currentTime = 0
       return available
     }
-    const fresh = preload('/sounds/cash-register.wav')
+    const fresh = preload(ITEM_CHECK_SRC)
     checkPool.current.push(fresh)
     return fresh
   }, [])
@@ -38,10 +42,10 @@ export function useCompletionSound() {
   }, [])
 
   const playAllComplete = useCallback(() => {
-    if (!fanfareRef.current) {
-      fanfareRef.current = preload('/sounds/fanfare.wav')
+    if (!completeRef.current) {
+      completeRef.current = preload(ITEM_COMPLETE_SRC)
     }
-    const audio = fanfareRef.current
+    const audio = completeRef.current
     audio.currentTime = 0
     audio.volume = 0.8
     audio.play().catch(() => {})
