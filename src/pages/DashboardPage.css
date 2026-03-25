@@ -31,18 +31,41 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* Rules */
-.dashboard__rules {
-  border: 1px solid rgba(245, 158, 11, 0.15);
-  border-radius: 12px;
-  padding: 1.25rem 1.5rem;
-  margin-bottom: 1.5rem;
-  background: rgba(245, 158, 11, 0.03);
+/* Menu dropdown */
+.dashboard__menu-wrap {
+  position: relative;
 }
 
-.dashboard__rules-title {
-  margin: 0 0 0.75rem;
-  font-size: 1rem;
+.dashboard__menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 50;
+  width: 340px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: #111120;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dashboard__menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.dashboard__menu-section + .dashboard__menu-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1rem;
+}
+
+.dashboard__menu-heading {
+  margin: 0;
+  font-size: 0.85rem;
   font-weight: 600;
   color: #f59e0b;
   letter-spacing: 0.04em;
@@ -58,8 +81,8 @@
 }
 
 .dashboard__rules-list li {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.55);
   line-height: 1.5;
 }
 
@@ -265,24 +288,11 @@
   color: rgba(255, 255, 255, 0.2);
 }
 
-/* Reminder */
-.dashboard__reminder {
-  margin-top: 1.5rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  padding-top: 1.5rem;
-  padding-bottom: 2rem;
-}
-
-.dashboard__reminder-title {
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 0.75rem;
-}
-
+/* Reminder (inside menu) */
 .dashboard__reminder-denied {
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   color: rgba(255, 255, 255, 0.3);
+  margin: 0;
 }
 
 .dashboard__reminder-active {
@@ -292,8 +302,9 @@
 }
 
 .dashboard__reminder-active p {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: rgba(255, 255, 255, 0.55);
+  margin: 0;
 }
 
 .dashboard__reminder-active strong {
@@ -344,6 +355,12 @@
 @media (max-width: 640px) {
   .dashboard {
     padding: 1.5rem 1rem;
+  }
+
+  .dashboard__menu {
+    width: calc(100vw - 2rem);
+    left: 0;
+    right: 0;
   }
 
   .dashboard__reminder-setup {

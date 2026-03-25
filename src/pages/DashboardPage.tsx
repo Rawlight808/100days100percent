@@ -32,7 +32,7 @@ export function DashboardPage() {
   const [journal, setJournal] = useState('')
   const [journalSaved, setJournalSaved] = useState(false)
   const journalTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [showRules, setShowRules] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
   const [reminderHour, setReminderHour] = useState(reminder.hour)
   const [reminderMinute, setReminderMinute] = useState(reminder.minute)
 
@@ -115,28 +115,88 @@ export function DashboardPage() {
   return (
     <div className="dashboard">
       <div className="dashboard__nav">
-        <button
-          className="dashboard__nav-btn"
-          type="button"
-          onClick={() => setShowRules(r => !r)}
-        >
-          Rules
-        </button>
+        <div className="dashboard__menu-wrap">
+          <button
+            className="dashboard__nav-btn"
+            type="button"
+            onClick={() => setMenuOpen(o => !o)}
+          >
+            Menu {menuOpen ? '▲' : '▼'}
+          </button>
+
+          {menuOpen && (
+            <div className="dashboard__menu">
+              <div className="dashboard__menu-section">
+                <h3 className="dashboard__menu-heading">The Rules</h3>
+                <ol className="dashboard__rules-list">
+                  <li>All items must be completed every day or the 100 days resets.</li>
+                  <li>Daily progress must be reported before noon the following day or the 100 days resets.</li>
+                  <li>You may change an item on your list after completing it three days in a row.</li>
+                </ol>
+              </div>
+
+              <div className="dashboard__menu-section">
+                <h3 className="dashboard__menu-heading">Daily Reminder</h3>
+                {notifPerm === 'denied' ? (
+                  <p className="dashboard__reminder-denied">
+                    Notifications are blocked. Enable them in your browser settings.
+                  </p>
+                ) : reminder.enabled ? (
+                  <div className="dashboard__reminder-active">
+                    <p>
+                      Reminder set for{' '}
+                      <strong>
+                        {String(reminder.hour).padStart(2, '0')}:
+                        {String(reminder.minute).padStart(2, '0')}
+                      </strong>
+                    </p>
+                    <button className="dashboard__reminder-btn" onClick={disableReminder}>
+                      Turn Off
+                    </button>
+                  </div>
+                ) : (
+                  <div className="dashboard__reminder-setup">
+                    <div className="dashboard__reminder-time">
+                      <select
+                        value={reminderHour}
+                        onChange={e => setReminderHour(Number(e.target.value))}
+                        className="dashboard__reminder-select"
+                      >
+                        {Array.from({ length: 24 }, (_, h) => (
+                          <option key={h} value={h}>
+                            {String(h).padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                      <span>:</span>
+                      <select
+                        value={reminderMinute}
+                        onChange={e => setReminderMinute(Number(e.target.value))}
+                        className="dashboard__reminder-select"
+                      >
+                        {[0, 15, 30, 45].map(m => (
+                          <option key={m} value={m}>
+                            {String(m).padStart(2, '0')}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <button
+                      className="dashboard__reminder-btn"
+                      onClick={() => enableReminder(reminderHour, reminderMinute)}
+                    >
+                      Enable Reminder
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         <button className="dashboard__signout" type="button" onClick={signOut}>
           Sign Out
         </button>
       </div>
-
-      {showRules && (
-        <div className="dashboard__rules">
-          <h3 className="dashboard__rules-title">The Rules</h3>
-          <ol className="dashboard__rules-list">
-            <li>Miss one item and you start over.</li>
-            <li>Record your progress before noon the next day — or start over.</li>
-            <li>You may change an item on your list after completing it three days in a row.</li>
-          </ol>
-        </div>
-      )}
 
       <DayCounter
         day={displayDay.day}
@@ -235,62 +295,6 @@ export function DashboardPage() {
           value={journal}
           onChange={e => handleJournalChange(e.target.value)}
         />
-      </div>
-
-      <div className="dashboard__reminder">
-        <h3 className="dashboard__reminder-title">Daily Reminder</h3>
-        {notifPerm === 'denied' ? (
-          <p className="dashboard__reminder-denied">
-            Notifications are blocked. Enable them in your browser settings to use reminders.
-          </p>
-        ) : reminder.enabled ? (
-          <div className="dashboard__reminder-active">
-            <p>
-              Reminder set for{' '}
-              <strong>
-                {String(reminder.hour).padStart(2, '0')}:
-                {String(reminder.minute).padStart(2, '0')}
-              </strong>
-            </p>
-            <button className="dashboard__reminder-btn" onClick={disableReminder}>
-              Turn Off
-            </button>
-          </div>
-        ) : (
-          <div className="dashboard__reminder-setup">
-            <div className="dashboard__reminder-time">
-              <select
-                value={reminderHour}
-                onChange={e => setReminderHour(Number(e.target.value))}
-                className="dashboard__reminder-select"
-              >
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>
-                    {String(h).padStart(2, '0')}
-                  </option>
-                ))}
-              </select>
-              <span>:</span>
-              <select
-                value={reminderMinute}
-                onChange={e => setReminderMinute(Number(e.target.value))}
-                className="dashboard__reminder-select"
-              >
-                {[0, 15, 30, 45].map(m => (
-                  <option key={m} value={m}>
-                    {String(m).padStart(2, '0')}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <button
-              className="dashboard__reminder-btn"
-              onClick={() => enableReminder(reminderHour, reminderMinute)}
-            >
-              Enable Reminder
-            </button>
-          </div>
-        )}
       </div>
 
       {celebrate && (
