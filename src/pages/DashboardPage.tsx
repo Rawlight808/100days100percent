@@ -59,16 +59,16 @@ export function DashboardPage() {
   }, [justCompleted, playAllComplete, setJustCompleted])
 
   const handleToggle = useCallback(
-    async (itemId: string) => {
+    async (itemId: string, index: number) => {
       const isCurrentlyChecked = completedIds.has(itemId)
       if (!isCurrentlyChecked) {
-        playCheck()
+        playCheck(index, topTwelve.length)
       } else {
         playUncheck()
       }
       await toggleItem(itemId)
     },
-    [toggleItem, playCheck, playUncheck, completedIds],
+    [toggleItem, playCheck, playUncheck, completedIds, topTwelve.length],
   )
 
   const handleJournalChange = (value: string) => {
@@ -262,7 +262,7 @@ export function DashboardPage() {
               checked={completedIds.has(item.id)}
               index={i}
               disabled={displayDay.completedToday}
-              onToggle={() => handleToggle(item.id)}
+              onToggle={() => handleToggle(item.id, i)}
               onEdit={() => handleStartEdit(item.id, item.text)}
             />
           )
