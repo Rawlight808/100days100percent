@@ -28,6 +28,21 @@ export function LandingPage() {
             Get Started
           </button>
         </div>
+
+        <div className="landing__rules">
+          <div className="landing__rule">
+            <span className="landing__rule-num">1</span>
+            Miss one item and you start over.
+          </div>
+          <div className="landing__rule">
+            <span className="landing__rule-num">2</span>
+            Record progress before noon the next day — or start over.
+          </div>
+          <div className="landing__rule">
+            <span className="landing__rule-num">3</span>
+            You may change an item after completing it three days in a row.
+          </div>
+        </div>
       </div>
     </div>
   )

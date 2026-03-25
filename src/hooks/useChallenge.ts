@@ -22,6 +22,7 @@ export interface DailyLog {
   log_date: string
   completed_item_ids: string[]
   all_completed: boolean
+  journal_entry?: string | null
 }
 
 export interface Streak {
@@ -49,6 +50,10 @@ function localYesterday(): string {
   const d = new Date()
   d.setDate(d.getDate() - 1)
   return toDateStr(d)
+}
+
+function isPastNoon(): boolean {
+  return new Date().getHours() >= 12
 }
 
 export function useChallenge() {
@@ -127,23 +132,26 @@ export function useChallenge() {
         .select()
         .single()
       s = data as Streak
-    } else if (
-      s.last_perfect_date &&
-      s.last_perfect_date !== today &&
-      s.last_perfect_date !== yesterday
-    ) {
-      const { data } = await supabase
-        .from('streaks')
-        .update({
-          current_day: 0,
-          last_perfect_date: null,
-          streak_start_date: today,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
-        .select()
-        .single()
-      s = data as Streak
+    } else if (s.last_perfect_date && s.last_perfect_date !== today) {
+      const missedDeadline =
+        s.last_perfect_date !== yesterday ||
+        (s.last_perfect_date === yesterday && isPastNoon() && !logRes.data?.all_completed)
+      const streakBroken = s.last_perfect_date !== yesterday
+
+      if (missedDeadline || streakBroken) {
+        const { data } = await supabase
+          .from('streaks')
+          .update({
+            current_day: 0,
+            last_perfect_date: null,
+            streak_start_date: today,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', user.id)
+          .select()
+          .single()
+        s = data as Streak
+      }
     }
 
     setStreak(s)
@@ -206,6 +214,69 @@ export function useChallenge() {
         .eq('user_id', user.id)
         .order('position')
       if (data) setItems(data as Item[])
+    },
+    [user],
+  )
+
+  const saveJournal = useCallback(
+    async (entry: string) => {
+      if (!user) return
+
+      let log = todayLogRef.current
+      if (!log) {
+        const { data } = await supabase
+          .from('daily_logs')
+          .upsert(
+            {
+              user_id: user.id,
+              log_date: today,
+              completed_item_ids: [],
+              all_completed: false,
+              journal_entry: entry,
+            },
+            { onConflict: 'user_id,log_date' },
+          )
+          .select()
+          .single()
+        log = data as DailyLog
+        todayLogRef.current = log
+        setTodayLog(log)
+      } else {
+        await supabase
+          .from('daily_logs')
+          .update({ journal_entry: entry })
+          .eq('id', log.id)
+        const updated = { ...log, journal_entry: entry }
+        todayLogRef.current = updated
+        setTodayLog(updated)
+      }
+    },
+    [user, today],
+  )
+
+  const getItemConsecutiveDays = useCallback(
+    async (itemId: string): Promise<number> => {
+      if (!user) return 0
+
+      const { data: logs } = await supabase
+        .from('daily_logs')
+        .select('completed_item_ids, log_date')
+        .eq('user_id', user.id)
+        .order('log_date', { ascending: false })
+        .limit(3)
+
+      if (!logs || logs.length === 0) return 0
+
+      let consecutive = 0
+      for (const log of logs) {
+        const ids: string[] = log.completed_item_ids ?? []
+        if (ids.includes(itemId)) {
+          consecutive++
+        } else {
+          break
+        }
+      }
+      return consecutive
     },
     [user],
   )
@@ -325,6 +396,8 @@ export function useChallenge() {
     saveTopTwelve,
     updateItemText,
     reorderItems,
+    saveJournal,
+    getItemConsecutiveDays,
     toggleItem,
     reload: loadData,
   }

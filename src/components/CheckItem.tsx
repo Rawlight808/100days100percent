@@ -7,9 +7,10 @@ interface CheckItemProps {
   index: number
   disabled?: boolean
   onToggle: () => void
+  onEdit?: () => void
 }
 
-export function CheckItem({ text, checked, index, disabled, onToggle }: CheckItemProps) {
+export function CheckItem({ text, checked, index, disabled, onToggle, onEdit }: CheckItemProps) {
   const [animating, setAnimating] = useState(false)
 
   const handleClick = useCallback(() => {
@@ -58,6 +59,26 @@ export function CheckItem({ text, checked, index, disabled, onToggle }: CheckIte
         </svg>
       </div>
       <span className="check-item__text">{text}</span>
+      {onEdit && (
+        <button
+          className="check-item__edit"
+          title="Edit (requires 3-day streak)"
+          onClick={e => {
+            e.stopPropagation()
+            onEdit()
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </button>
+      )}
       <span className="check-item__number">{index + 1}</span>
     </div>
   )
