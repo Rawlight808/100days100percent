@@ -210,6 +210,36 @@ export function useChallenge() {
     [user],
   )
 
+  const updateItemText = useCallback(
+    async (itemId: string, newText: string) => {
+      if (!user) return
+      const trimmed = newText.trim()
+      if (!trimmed) return
+
+      await supabase.from('items').update({ text: trimmed }).eq('id', itemId)
+
+      setItems(prev =>
+        prev.map(item => (item.id === itemId ? { ...item, text: trimmed } : item)),
+      )
+    },
+    [user],
+  )
+
+  const reorderItems = useCallback(
+    async (reorderedItems: Item[]) => {
+      if (!user) return
+
+      const updated = reorderedItems.map((item, i) => ({ ...item, position: i }))
+      setItems(updated)
+
+      const updates = updated.map(item =>
+        supabase.from('items').update({ position: item.position }).eq('id', item.id),
+      )
+      await Promise.all(updates)
+    },
+    [user],
+  )
+
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
       if (!user) return false
@@ -293,6 +323,8 @@ export function useChallenge() {
     setJustCompleted,
     saveItems,
     saveTopTwelve,
+    updateItemText,
+    reorderItems,
     toggleItem,
     reload: loadData,
   }
