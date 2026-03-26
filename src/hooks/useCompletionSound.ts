@@ -57,8 +57,7 @@ export function useCompletionSound() {
    * @param index - 0-based position of the item being checked
    * @param total - total number of items in the list
    *
-   * Sound 20 is always reserved for the last item.
-   * Sounds 1-19 are distributed evenly across the remaining items.
+   * Sound 20 is always reserved for the last item; earlier items use sounds 1–19 in order.
    */
   const playCheck = useCallback(
     (index: number, total: number) => {
@@ -76,10 +75,9 @@ export function useCompletionSound() {
   }, [])
 
   const playAllComplete = useCallback(() => {
-    const audio = getAudio(SOUND_FILES[19])
-    audio.volume = 0.85
-    audio.play().catch(() => {})
-  }, [getAudio])
+    // No audio: playCheck already played sound #20 on the final checkbox.
+    // Playing it again here doubled the finale.
+  }, [])
 
   return { playCheck, playUncheck, playAllComplete }
 }
