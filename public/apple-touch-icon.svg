@@ -8,11 +8,12 @@
   </defs>
   <text
     x="90"
-    y="118"
+    y="92"
     font-family="system-ui, -apple-system, BlinkMacSystemFont, 'SF Pro Text', sans-serif"
-    font-size="76"
+    font-size="68"
     font-weight="200"
     fill="url(#g)"
     text-anchor="middle"
+    dominant-baseline="middle"
   >100</text>
 </svg>
