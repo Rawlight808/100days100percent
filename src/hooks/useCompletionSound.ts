@@ -62,12 +62,8 @@ export function useCompletionSound() {
    */
   const playCheck = useCallback(
     (index: number, total: number) => {
-      let soundIdx: number
-      if (index === total - 1) {
-        soundIdx = 19
-      } else {
-        soundIdx = Math.round((index / (total - 1)) * 18)
-      }
+      // Play sound 20 for the final item, otherwise play sequentially (1, 2, 3…)
+      const soundIdx = index === total - 1 ? 19 : index
       const audio = getAudio(SOUND_FILES[soundIdx])
       audio.volume = 0.75
       audio.play().catch(() => {})
