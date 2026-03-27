@@ -131,6 +131,13 @@
   margin: 0;
 }
 
+.auth__notice {
+  color: #fbbf24;
+  font-size: 0.875rem;
+  text-align: center;
+  margin: 0;
+}
+
 .auth__submit {
   width: 100%;
   padding: 0.85rem;

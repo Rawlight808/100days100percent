@@ -7,7 +7,10 @@ interface AuthState {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string) => Promise<string | null>
+  signUp: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: string | null; requiresEmailVerification: boolean }>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
 }
@@ -37,14 +40,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = useCallback(async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
+    const {
+      data: { session: nextSession },
+      error,
+    } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
       },
     })
-    return error?.message ?? null
+
+    return {
+      error: error?.message ?? null,
+      requiresEmailVerification: !error && !nextSession,
+    }
   }, [])
 
   const signIn = useCallback(async (email: string, password: string) => {

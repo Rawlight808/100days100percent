@@ -12,6 +12,7 @@ export function AuthPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
   if (!loading && user) return <Navigate to="/dashboard" replace />
@@ -19,6 +20,7 @@ export function AuthPage() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
 
     if (mode === 'signup' && password !== confirm) {
       setError('Passwords do not match')
@@ -26,12 +28,27 @@ export function AuthPage() {
     }
 
     setSubmitting(true)
-    const err =
-      mode === 'signup' ? await signUp(email, password) : await signIn(email, password)
+
+    let err: string | null = null
+    let requiresEmailVerification = false
+
+    if (mode === 'signup') {
+      const result = await signUp(email, password)
+      err = result.error
+      requiresEmailVerification = result.requiresEmailVerification
+    } else {
+      err = await signIn(email, password)
+    }
+
     setSubmitting(false)
 
     if (err) {
       setError(err)
+    } else if (requiresEmailVerification) {
+      setNotice(`Check ${email} for a verification link before signing in.`)
+      setPassword('')
+      setConfirm('')
+      setMode('signin')
     } else {
       navigate('/dashboard', { replace: true })
     }
@@ -69,6 +86,7 @@ export function AuthPage() {
             onClick={() => {
               setMode('signin')
               setError(null)
+              setNotice(null)
             }}
           >
             Sign In
@@ -79,6 +97,7 @@ export function AuthPage() {
             onClick={() => {
               setMode('signup')
               setError(null)
+              setNotice(null)
             }}
           >
             Sign Up
@@ -117,6 +136,7 @@ export function AuthPage() {
               autoComplete="new-password"
             />
           )}
+          {notice && <p className="auth__notice">{notice}</p>}
           {error && <p className="auth__error">{error}</p>}
           <button type="submit" className="auth__submit" disabled={submitting}>
             {submitting ? '…' : mode === 'signup' ? 'Create Account' : 'Sign In'}
