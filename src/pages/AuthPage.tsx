@@ -45,7 +45,7 @@ export function AuthPage() {
     if (err) {
       setError(err)
     } else if (requiresEmailVerification) {
-      setNotice(`Check ${email} for a verification link before signing in.`)
+      setNotice('Check your email for a verification link.')
       setPassword('')
       setConfirm('')
       setMode('signin')
