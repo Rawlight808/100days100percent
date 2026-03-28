@@ -1,19 +1,46 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge, REQUIRED_ITEMS } from '../hooks/useChallenge'
+import { useAuth } from '../contexts/AuthContext'
 import './SetupPage.css'
 
+function getDraftStorageKey(userId: string) {
+  return `hundred-days:setup-draft:${userId}`
+}
+
 export function SetupPage() {
+  const { user } = useAuth()
   const { items, phase, loading, saveItems } = useChallenge()
   const navigate = useNavigate()
   const [text, setText] = useState('')
   const [saving, setSaving] = useState(false)
+  const didHydrateDraft = useRef(false)
+
+  const draftStorageKey = user ? getDraftStorageKey(user.id) : null
 
   useEffect(() => {
+    if (loading || didHydrateDraft.current) return
+
     if (items.length > 0) {
       setText(items.map(i => i.text).join('\n'))
+    } else if (draftStorageKey) {
+      const savedDraft = window.localStorage.getItem(draftStorageKey)
+      if (savedDraft) setText(savedDraft)
     }
-  }, [items])
+
+    didHydrateDraft.current = true
+  }, [draftStorageKey, items, loading])
+
+  useEffect(() => {
+    if (!didHydrateDraft.current || !draftStorageKey) return
+
+    if (text.trim().length === 0) {
+      window.localStorage.removeItem(draftStorageKey)
+      return
+    }
+
+    window.localStorage.setItem(draftStorageKey, text)
+  }, [draftStorageKey, text])
 
   const lines = useMemo(
     () => text.split('\n').filter(l => l.trim().length > 0),
@@ -43,6 +70,7 @@ export function SetupPage() {
     if (lines.length < REQUIRED_ITEMS) return
     setSaving(true)
     await saveItems(lines.slice(0, REQUIRED_ITEMS).map(l => l.trim()))
+    if (draftStorageKey) window.localStorage.removeItem(draftStorageKey)
     setSaving(false)
     navigate('/select')
   }
@@ -107,6 +135,8 @@ export function SetupPage() {
           {saving ? 'Saving…' : 'Save & Continue'}
         </button>
       </div>
+
+      <p className="setup__draft-note">Your draft saves automatically on this device.</p>
 
       {lines.length > 0 && lines.length < REQUIRED_ITEMS && (
         <p className="setup__hint">

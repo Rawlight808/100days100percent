@@ -131,6 +131,13 @@
   margin-top: 1.5rem;
 }
 
+.setup__draft-note {
+  text-align: center;
+  margin: 0.85rem 0 0;
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
 .setup__btn {
   padding: 0.85rem 2.5rem;
   border: none;
