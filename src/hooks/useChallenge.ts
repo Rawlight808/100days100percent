@@ -34,6 +34,13 @@ export interface Streak {
 
 export type Phase = 'loading' | 'setup' | 'select' | 'ready'
 
+/**
+ * The "challenge day" rolls over at 4am local time instead of midnight,
+ * so users who stay up past midnight don't accidentally cross into a new day.
+ * Users still have until noon the following challenge day to report progress.
+ */
+const DAY_ROLLOVER_HOUR = 4
+
 function toDateStr(d: Date): string {
   return [
     d.getFullYear(),
@@ -42,12 +49,20 @@ function toDateStr(d: Date): string {
   ].join('-')
 }
 
+function challengeNow(): Date {
+  const d = new Date()
+  if (d.getHours() < DAY_ROLLOVER_HOUR) {
+    d.setDate(d.getDate() - 1)
+  }
+  return d
+}
+
 function localToday(): string {
-  return toDateStr(new Date())
+  return toDateStr(challengeNow())
 }
 
 function localYesterday(): string {
-  const d = new Date()
+  const d = challengeNow()
   d.setDate(d.getDate() - 1)
   return toDateStr(d)
 }
@@ -162,6 +177,20 @@ export function useChallenge() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    const now = new Date()
+    const next = new Date(now)
+    next.setHours(DAY_ROLLOVER_HOUR, 0, 0, 0)
+    if (next <= now) next.setDate(next.getDate() + 1)
+    const msUntilRollover = next.getTime() - now.getTime()
+
+    const timer = setTimeout(() => {
+      loadData()
+    }, msUntilRollover + 1000)
+
+    return () => clearTimeout(timer)
+  }, [loadData, today])
 
   const saveItems = useCallback(
     async (texts: string[]) => {
