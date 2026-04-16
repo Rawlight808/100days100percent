@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
@@ -21,10 +21,12 @@ export function DashboardPage() {
     justCompleted,
     setJustCompleted,
     toggleItem,
+    resetToSelect,
     saveJournal,
     getItemConsecutiveDays,
     updateItemText,
   } = useChallenge()
+  const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
   const { settings: reminder, permission: notifPerm, enable: enableReminder, disable: disableReminder } = useReminder()
 
@@ -59,10 +61,10 @@ export function DashboardPage() {
   }, [justCompleted, playAllComplete, setJustCompleted])
 
   const handleToggle = useCallback(
-    async (itemId: string, index: number) => {
+    async (itemId: string) => {
       const isCurrentlyChecked = completedIds.has(itemId)
       if (!isCurrentlyChecked) {
-        playCheck(index, topTwelve.length)
+        playCheck(completedIds.size, topTwelve.length)
       } else {
         playUncheck()
       }
@@ -190,6 +192,23 @@ export function DashboardPage() {
                   </div>
                 )}
               </div>
+
+              <div className="dashboard__menu-section">
+                <h3 className="dashboard__menu-heading">Start Over</h3>
+                <p className="dashboard__reset-desc">
+                  Re-pick your daily habits from your 100 list. Your streak and
+                  today&apos;s progress will be reset.
+                </p>
+                <button
+                  className="dashboard__reset-btn"
+                  onClick={async () => {
+                    await resetToSelect()
+                    navigate('/select', { replace: true })
+                  }}
+                >
+                  Reset &amp; Choose Again
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -262,7 +281,7 @@ export function DashboardPage() {
               checked={completedIds.has(item.id)}
               index={i}
               disabled={displayDay.completedToday}
-              onToggle={() => handleToggle(item.id, i)}
+              onToggle={() => handleToggle(item.id)}
               onEdit={() => handleStartEdit(item.id, item.text)}
             />
           )

@@ -311,6 +311,26 @@ export function useChallenge() {
     [user],
   )
 
+  const resetToSelect = useCallback(async () => {
+    if (!user) return
+    await supabase
+      .from('items')
+      .update({ is_top_twelve: false })
+      .eq('user_id', user.id)
+    await supabase.from('daily_logs').delete().eq('user_id', user.id)
+    await supabase
+      .from('streaks')
+      .update({
+        current_day: 0,
+        last_perfect_date: null,
+        streak_start_date: today,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+
+    await loadData()
+  }, [user, today, loadData])
+
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
       if (!user) return false
@@ -399,6 +419,7 @@ export function useChallenge() {
     saveJournal,
     getItemConsecutiveDays,
     toggleItem,
+    resetToSelect,
     reload: loadData,
   }
 }

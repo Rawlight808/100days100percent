@@ -352,6 +352,30 @@
   background: rgba(245, 158, 11, 0.25);
 }
 
+.dashboard__reset-desc {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.dashboard__reset-btn {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  transition: background 0.2s ease;
+}
+
+.dashboard__reset-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
 @media (max-width: 640px) {
   .dashboard {
     padding: 1.5rem 1rem;
