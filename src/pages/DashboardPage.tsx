@@ -22,6 +22,7 @@ export function DashboardPage() {
     setJustCompleted,
     toggleItem,
     resetToSelect,
+    advanceDay,
     saveJournal,
     getItemConsecutiveDays,
     updateItemText,
@@ -300,6 +301,20 @@ export function DashboardPage() {
               ? 'Incredible. You committed and followed through. This is who you are now.'
               : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
           </div>
+          {displayDay.day < REQUIRED_DAYS && (
+            <>
+              <button
+                className="dashboard__next-day-btn"
+                type="button"
+                onClick={advanceDay}
+              >
+                Start Day {displayDay.day + 1}
+              </button>
+              <p className="dashboard__next-day-hint">
+                Or wait — the next day also unlocks automatically at 4:00 AM.
+              </p>
+            </>
+          )}
         </div>
       )}
 

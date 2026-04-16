@@ -148,6 +148,31 @@
   line-height: 1.6;
 }
 
+.dashboard__next-day-btn {
+  margin-top: 1.25rem;
+  padding: 0.7rem 1.8rem;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #000;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard__next-day-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.25);
+}
+
+.dashboard__next-day-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.3);
+}
+
 .dashboard__celebration {
   position: fixed;
   inset: 0;

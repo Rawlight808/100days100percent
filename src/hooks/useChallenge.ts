@@ -57,18 +57,23 @@ function challengeNow(): Date {
   return d
 }
 
-function localToday(): string {
+function naturalToday(): string {
   return toDateStr(challengeNow())
 }
 
-function localYesterday(): string {
-  const d = challengeNow()
-  d.setDate(d.getDate() - 1)
-  return toDateStr(d)
+function addDaysToDateStr(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() + delta)
+  return toDateStr(date)
 }
 
 function isPastNoon(): boolean {
   return new Date().getHours() >= 12
+}
+
+function advancedStorageKey(userId: string): string {
+  return `hundred-days:advanced-to:${userId}`
 }
 
 export function useChallenge() {
@@ -82,8 +87,26 @@ export function useChallenge() {
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
 
-  const today = localToday()
-  const yesterday = localYesterday()
+  const [advancedTo, setAdvancedTo] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null
+    return null
+  })
+
+  useEffect(() => {
+    if (!user) {
+      setAdvancedTo(null)
+      return
+    }
+    const stored = window.localStorage.getItem(advancedStorageKey(user.id))
+    setAdvancedTo(stored)
+  }, [user])
+
+  const today = useMemo(() => {
+    const natural = naturalToday()
+    return advancedTo && advancedTo > natural ? advancedTo : natural
+  }, [advancedTo])
+
+  const yesterday = useMemo(() => addDaysToDateStr(today, -1), [today])
 
   const topTwelve = useMemo(() => items.filter(i => i.is_top_twelve), [items])
 
@@ -148,10 +171,14 @@ export function useChallenge() {
         .single()
       s = data as Streak
     } else if (s.last_perfect_date && s.last_perfect_date !== today) {
+      // If the user manually advanced ahead of the natural calendar day, skip
+      // the "past noon" deadline check — noon of the advanced day hasn't happened yet.
+      const isAdvancedAhead = today > naturalToday()
       const missedDeadline =
-        s.last_perfect_date !== yesterday ||
-        (s.last_perfect_date === yesterday && isPastNoon() && !logRes.data?.all_completed)
-      const streakBroken = s.last_perfect_date !== yesterday
+        !isAdvancedAhead &&
+        (s.last_perfect_date !== yesterday ||
+          (s.last_perfect_date === yesterday && isPastNoon() && !logRes.data?.all_completed))
+      const streakBroken = !isAdvancedAhead && s.last_perfect_date !== yesterday
 
       if (missedDeadline || streakBroken) {
         const { data } = await supabase
@@ -357,8 +384,18 @@ export function useChallenge() {
       })
       .eq('user_id', user.id)
 
+    window.localStorage.removeItem(advancedStorageKey(user.id))
+    setAdvancedTo(null)
+
     await loadData()
   }, [user, today, loadData])
+
+  const advanceDay = useCallback(() => {
+    if (!user) return
+    const next = addDaysToDateStr(today, 1)
+    window.localStorage.setItem(advancedStorageKey(user.id), next)
+    setAdvancedTo(next)
+  }, [user, today])
 
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
@@ -449,6 +486,7 @@ export function useChallenge() {
     getItemConsecutiveDays,
     toggleItem,
     resetToSelect,
+    advanceDay,
     reload: loadData,
   }
 }
