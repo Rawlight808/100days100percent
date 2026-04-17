@@ -27,38 +27,54 @@ function soundUrl(filename: string): string {
   return `/sounds/${encodeURIComponent(filename)}`
 }
 
-function makeAudio(src: string): HTMLAudioElement {
+/**
+ * Sound playback strategy:
+ *
+ * - For each file, keep ONE master Audio element with preload="auto" so the
+ *   browser fetches and decodes the bytes up front.
+ * - On each play, clone the master element. Clones inherit the resolved src
+ *   and (in all modern browsers) the cached network response, so they start
+ *   playing without re-fetching. This lets rapid repeat clicks overlap
+ *   instead of re-triggering or dropping the sound.
+ * - Fire-and-forget clones are discarded after playback so we don't grow
+ *   memory unboundedly.
+ */
+function createMaster(src: string): HTMLAudioElement {
   const audio = new Audio(src)
   audio.preload = 'auto'
+  // Touch .load() so Safari reliably starts fetching before the first click.
+  audio.load()
   return audio
 }
 
 export function useCompletionSound() {
-  const cache = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const masters = useRef<Map<string, HTMLAudioElement>>(new Map())
 
   useEffect(() => {
     for (const file of SOUND_FILES) {
       const url = soundUrl(file)
-      if (!cache.current.has(url)) {
-        cache.current.set(url, makeAudio(url))
+      if (!masters.current.has(url)) {
+        masters.current.set(url, createMaster(url))
       }
     }
   }, [])
 
-  const getAudio = useCallback((filename: string) => {
+  const playFile = useCallback((filename: string, volume = 0.75) => {
     const url = soundUrl(filename)
-    let audio = cache.current.get(url)
-    if (!audio) {
-      audio = makeAudio(url)
-      cache.current.set(url, audio)
+    let master = masters.current.get(url)
+    if (!master) {
+      master = createMaster(url)
+      masters.current.set(url, master)
     }
-    if (!audio.paused && !audio.ended) {
-      const fresh = makeAudio(url)
-      cache.current.set(url + '_' + Date.now(), fresh)
-      return fresh
+    const instance = master.cloneNode() as HTMLAudioElement
+    instance.volume = volume
+    const result = instance.play()
+    if (result && typeof result.catch === 'function') {
+      result.catch(() => {
+        // Autoplay policy, interrupted playback, or 404 for a stale bundle —
+        // swallow silently; the UI still reflects the check.
+      })
     }
-    audio.currentTime = 0
-    return audio
   }, [])
 
   /**
@@ -75,11 +91,9 @@ export function useCompletionSound() {
       const soundIdx = isLast
         ? SOUND_FILES.length - 1
         : Math.min(completionIndex, SOUND_FILES.length - 2)
-      const audio = getAudio(SOUND_FILES[soundIdx])
-      audio.volume = 0.75
-      audio.play().catch(() => {})
+      playFile(SOUND_FILES[soundIdx])
     },
-    [getAudio],
+    [playFile],
   )
 
   const playUncheck = useCallback(() => {

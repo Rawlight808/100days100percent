@@ -36,8 +36,9 @@ export type Phase = 'loading' | 'setup' | 'select' | 'ready'
 
 /**
  * The "challenge day" rolls over at 4am local time instead of midnight,
- * so users who stay up past midnight don't accidentally cross into a new day.
- * Users still have until noon the following challenge day to report progress.
+ * so a late-night push to finish the current day still counts for that day.
+ * Once the held day is already completed, we stop holding — there's no
+ * reason to keep showing a fully-checked list after midnight.
  */
 const DAY_ROLLOVER_HOUR = 4
 
@@ -47,6 +48,10 @@ function toDateStr(d: Date): string {
     String(d.getMonth() + 1).padStart(2, '0'),
     String(d.getDate()).padStart(2, '0'),
   ].join('-')
+}
+
+function calendarToday(): string {
+  return toDateStr(new Date())
 }
 
 function challengeNow(): Date {
@@ -66,10 +71,6 @@ function addDaysToDateStr(dateStr: string, delta: number): string {
   const date = new Date(y, m - 1, d)
   date.setDate(date.getDate() + delta)
   return toDateStr(date)
-}
-
-function isPastNoon(): boolean {
-  return new Date().getHours() >= 12
 }
 
 function advancedStorageKey(userId: string): string {
@@ -103,8 +104,16 @@ export function useChallenge() {
 
   const today = useMemo(() => {
     const natural = naturalToday()
-    return advancedTo && advancedTo > natural ? advancedTo : natural
-  }, [advancedTo])
+    const calendar = calendarToday()
+    const manual = advancedTo && advancedTo > natural ? advancedTo : null
+    // If the 4am-held day has already been completed AND the real calendar
+    // has crossed midnight, auto-roll to the calendar day. This prevents the
+    // "open the app at 1am and see yesterday's already-checked boxes" confusion.
+    const autoRolled =
+      streak?.last_perfect_date === natural && calendar > natural ? calendar : null
+    const candidates = [natural, manual, autoRolled].filter(Boolean) as string[]
+    return candidates.reduce((a, b) => (a > b ? a : b))
+  }, [advancedTo, streak])
 
   const yesterday = useMemo(() => addDaysToDateStr(today, -1), [today])
 
@@ -171,16 +180,13 @@ export function useChallenge() {
         .single()
       s = data as Streak
     } else if (s.last_perfect_date && s.last_perfect_date !== today) {
-      // If the user manually advanced ahead of the natural calendar day, skip
-      // the "past noon" deadline check — noon of the advanced day hasn't happened yet.
-      const isAdvancedAhead = today > naturalToday()
-      const missedDeadline =
-        !isAdvancedAhead &&
-        (s.last_perfect_date !== yesterday ||
-          (s.last_perfect_date === yesterday && isPastNoon() && !logRes.data?.all_completed))
-      const streakBroken = !isAdvancedAhead && s.last_perfect_date !== yesterday
+      // Streak only breaks when the user skipped a whole challenge day —
+      // i.e., their last perfect day is older than "yesterday" relative to today.
+      // Today itself is still in progress; we don't punish a user for opening
+      // the app before they've finished today's tasks.
+      const streakBroken = s.last_perfect_date < yesterday
 
-      if (missedDeadline || streakBroken) {
+      if (streakBroken) {
         const { data } = await supabase
           .from('streaks')
           .update({
