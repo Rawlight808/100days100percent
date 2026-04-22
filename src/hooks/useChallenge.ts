@@ -23,7 +23,11 @@ export interface DailyLog {
   completed_item_ids: string[]
   all_completed: boolean
   journal_entry?: string | null
+  is_sabbath?: boolean
 }
+
+/** Days of perfect completion required before the sabbath unlocks. */
+export const SABBATH_UNLOCK_DAY = 3
 
 export interface Streak {
   user_id: string
@@ -73,6 +77,14 @@ function addDaysToDateStr(dateStr: string, delta: number): string {
   return toDateStr(date)
 }
 
+/** Start of the calendar week (Sunday) containing the given date. */
+function weekStartStr(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  date.setDate(date.getDate() - date.getDay())
+  return toDateStr(date)
+}
+
 function advancedStorageKey(userId: string): string {
   return `hundred-days:advanced-to:${userId}`
 }
@@ -84,6 +96,7 @@ export function useChallenge() {
   const [streak, setStreak] = useState<Streak | null>(null)
   const [loading, setLoading] = useState(true)
   const [justCompleted, setJustCompleted] = useState(false)
+  const [sabbathThisWeek, setSabbathThisWeek] = useState<string | null>(null)
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
@@ -153,7 +166,9 @@ export function useChallenge() {
     if (!user) return
     setLoading(true)
 
-    const [itemsRes, logRes, streakRes] = await Promise.all([
+    const weekStart = weekStartStr(today)
+
+    const [itemsRes, logRes, streakRes, sabbathRes] = await Promise.all([
       supabase.from('items').select('*').eq('user_id', user.id).order('position'),
       supabase
         .from('daily_logs')
@@ -162,7 +177,19 @@ export function useChallenge() {
         .eq('log_date', today)
         .maybeSingle(),
       supabase.from('streaks').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase
+        .from('daily_logs')
+        .select('log_date')
+        .eq('user_id', user.id)
+        .eq('is_sabbath', true)
+        .gte('log_date', weekStart)
+        .lte('log_date', today)
+        .order('log_date', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ])
+
+    setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
 
     setItems((itemsRes.data ?? []) as Item[])
 
@@ -253,6 +280,8 @@ export function useChallenge() {
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id)
+
+      setSabbathThisWeek(null)
     },
     [user, today],
   )
@@ -392,6 +421,7 @@ export function useChallenge() {
 
     window.localStorage.removeItem(advancedStorageKey(user.id))
     setAdvancedTo(null)
+    setSabbathThisWeek(null)
 
     await loadData()
   }, [user, today, loadData])
@@ -402,6 +432,84 @@ export function useChallenge() {
     window.localStorage.setItem(advancedStorageKey(user.id), next)
     setAdvancedTo(next)
   }, [user, today])
+
+  const sabbathStatus = useMemo(() => {
+    const weekStart = weekStartStr(today)
+    const usedThisWeek = sabbathThisWeek !== null
+    const unlocked = (streak?.current_day ?? 0) >= SABBATH_UNLOCK_DAY
+    const todayIsSabbath = todayLog?.is_sabbath === true
+    const nextAvailable = addDaysToDateStr(weekStart, 7)
+    const canTake =
+      unlocked &&
+      !usedThisWeek &&
+      !displayDay.completedToday &&
+      topTwelve.length > 0
+    return {
+      unlocked,
+      usedThisWeek,
+      todayIsSabbath,
+      canTake,
+      nextAvailable,
+      daysUntilUnlock: Math.max(0, SABBATH_UNLOCK_DAY - (streak?.current_day ?? 0)),
+    }
+  }, [streak, sabbathThisWeek, todayLog, displayDay.completedToday, topTwelve.length, today])
+
+  const takeSabbath = useCallback(async () => {
+    if (!user) return
+    if (!streak) return
+    if (streak.current_day < SABBATH_UNLOCK_DAY) return
+    if (sabbathThisWeek) return
+    if (displayDay.completedToday) return
+    if (topTwelve.length === 0) return
+
+    const allIds = topTwelve.map(i => i.id)
+
+    const { data: logData } = await supabase
+      .from('daily_logs')
+      .upsert(
+        {
+          user_id: user.id,
+          log_date: today,
+          completed_item_ids: allIds,
+          all_completed: true,
+          is_sabbath: true,
+        },
+        { onConflict: 'user_id,log_date' },
+      )
+      .select()
+      .single()
+
+    if (logData) {
+      const log = logData as DailyLog
+      setTodayLog(log)
+      todayLogRef.current = log
+    }
+
+    const newDay =
+      streak.last_perfect_date === yesterday ? streak.current_day + 1 : 1
+    const { data: updatedStreak } = await supabase
+      .from('streaks')
+      .update({
+        current_day: newDay,
+        last_perfect_date: today,
+        streak_start_date:
+          streak.last_perfect_date === yesterday
+            ? streak.streak_start_date
+            : today,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+      .select()
+      .single()
+
+    if (updatedStreak) {
+      setStreak(updatedStreak as Streak)
+      streakRef.current = updatedStreak as Streak
+    }
+
+    setSabbathThisWeek(today)
+    setJustCompleted(true)
+  }, [user, streak, sabbathThisWeek, displayDay.completedToday, topTwelve, today, yesterday])
 
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
@@ -493,6 +601,8 @@ export function useChallenge() {
     toggleItem,
     resetToSelect,
     advanceDay,
+    sabbathStatus,
+    takeSabbath,
     reload: loadData,
   }
 }

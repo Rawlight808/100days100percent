@@ -173,6 +173,60 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
+.dashboard__sabbath {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dashboard__sabbath-btn {
+  padding: 0.55rem 1.4rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 999px;
+  background: transparent;
+  color: #f59e0b;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard__sabbath-btn:hover:not(:disabled) {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.6);
+  transform: translateY(-1px);
+}
+
+.dashboard__sabbath-btn:disabled {
+  color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
+}
+
+.dashboard__sabbath-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+.dashboard__sabbath-tag {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #f59e0b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .dashboard__celebration {
   position: fixed;
   inset: 0;

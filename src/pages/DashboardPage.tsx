@@ -26,6 +26,8 @@ export function DashboardPage() {
     saveJournal,
     getItemConsecutiveDays,
     updateItemText,
+    sabbathStatus,
+    takeSabbath,
   } = useChallenge()
   const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
@@ -97,6 +99,15 @@ export function DashboardPage() {
     setEditError(null)
   }
 
+  const handleSabbath = async () => {
+    if (!sabbathStatus.canTake) return
+    const ok = window.confirm(
+      'Take your sabbath for today? All items will be marked complete and your streak will advance. You can only do this once per week.',
+    )
+    if (!ok) return
+    await takeSabbath()
+  }
+
   const handleCommitEdit = async () => {
     if (!editingItemId || !editText.trim()) return
     await updateItemText(editingItemId, editText.trim())
@@ -135,7 +146,19 @@ export function DashboardPage() {
                   <li>All items must be completed every day or the 100 days resets.</li>
                   <li>Daily progress must be reported before noon the following day or the 100 days resets.</li>
                   <li>You may change an item on your list after completing it three days in a row.</li>
+                  <li>You may take one sabbath day per week after your first three perfect days.</li>
                 </ol>
+              </div>
+
+              <div className="dashboard__menu-section">
+                <h3 className="dashboard__menu-heading">Sabbath</h3>
+                <ul className="dashboard__rules-list">
+                  <li>One day of rest per calendar week (Sunday through Saturday).</li>
+                  <li>Unlocks after your first three perfect days.</li>
+                  <li>You do not have to fulfill the tasks on your list.</li>
+                  <li>You still cannot do the banned items on your list.</li>
+                  <li>The day counts toward your 100 and advances your streak.</li>
+                </ul>
               </div>
 
               <div className="dashboard__menu-section">
@@ -240,6 +263,30 @@ export function DashboardPage() {
           />
         </div>
       </div>
+
+      {!displayDay.completedToday && (
+        <div className="dashboard__sabbath">
+          <button
+            className="dashboard__sabbath-btn"
+            type="button"
+            onClick={handleSabbath}
+            disabled={!sabbathStatus.canTake}
+          >
+            Take Sabbath
+          </button>
+          <p className="dashboard__sabbath-hint">
+            {!sabbathStatus.unlocked
+              ? `Unlocks after ${sabbathStatus.daysUntilUnlock} more perfect day${sabbathStatus.daysUntilUnlock === 1 ? '' : 's'}.`
+              : sabbathStatus.usedThisWeek
+                ? 'Already used this week. Resets Sunday.'
+                : 'One day of rest per week. Checks every item and advances your streak.'}
+          </p>
+        </div>
+      )}
+
+      {displayDay.completedToday && sabbathStatus.todayIsSabbath && (
+        <p className="dashboard__sabbath-tag">Today was your sabbath.</p>
+      )}
 
       {editError && (
         <p className="dashboard__edit-error">{editError}</p>
