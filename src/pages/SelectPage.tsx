@@ -31,6 +31,7 @@ export function SelectPage() {
   }
 
   if (phase === 'setup') return <Navigate to="/setup" replace />
+  if (phase === 'failed') return <Navigate to="/failed" replace />
   if (phase === 'ready') return <Navigate to="/dashboard" replace />
 
   const toggle = (id: string) => {

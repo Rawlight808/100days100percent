@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/AuthContext'
+import {
+  DAY_ROLLOVER_HOUR,
+  addDaysToDateStr,
+  calendarToday,
+  naturalToday,
+  weekStartStr,
+} from '../lib/challengeDay'
 
 export const REQUIRED_ITEMS = 100
 /** Daily habits to track: pick between min and max for the 100-day run */
@@ -36,57 +43,51 @@ export interface Streak {
   last_perfect_date: string | null
 }
 
-export type Phase = 'loading' | 'setup' | 'select' | 'ready'
-
-/**
- * The "challenge day" rolls over at 4am local time instead of midnight,
- * so a late-night push to finish the current day still counts for that day.
- * Once the held day is already completed, we stop holding — there's no
- * reason to keep showing a fully-checked list after midnight.
- */
-const DAY_ROLLOVER_HOUR = 4
-
-function toDateStr(d: Date): string {
-  return [
-    d.getFullYear(),
-    String(d.getMonth() + 1).padStart(2, '0'),
-    String(d.getDate()).padStart(2, '0'),
-  ].join('-')
-}
-
-function calendarToday(): string {
-  return toDateStr(new Date())
-}
-
-function challengeNow(): Date {
-  const d = new Date()
-  if (d.getHours() < DAY_ROLLOVER_HOUR) {
-    d.setDate(d.getDate() - 1)
-  }
-  return d
-}
-
-function naturalToday(): string {
-  return toDateStr(challengeNow())
-}
-
-function addDaysToDateStr(dateStr: string, delta: number): string {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  date.setDate(date.getDate() + delta)
-  return toDateStr(date)
-}
-
-/** Start of the calendar week (Sunday) containing the given date. */
-function weekStartStr(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  date.setDate(date.getDate() - date.getDay())
-  return toDateStr(date)
-}
+export type Phase = 'loading' | 'setup' | 'select' | 'ready' | 'failed'
 
 function advancedStorageKey(userId: string): string {
   return `hundred-days:advanced-to:${userId}`
+}
+
+function failedStorageKey(userId: string): string {
+  return `hundred-days:failed:${userId}`
+}
+
+function loadFailedDay(userId: string): number | null {
+  try {
+    const raw = localStorage.getItem(failedStorageKey(userId))
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { failedDay?: number }
+    return typeof parsed.failedDay === 'number' ? parsed.failedDay : null
+  } catch {
+    return null
+  }
+}
+
+function saveFailedDay(userId: string, failedDay: number) {
+  localStorage.setItem(failedStorageKey(userId), JSON.stringify({ failedDay }))
+}
+
+function clearFailedDay(userId: string) {
+  localStorage.removeItem(failedStorageKey(userId))
+}
+
+function computeFailedDay(streak: Streak, yesterday: string): number {
+  if (streak.last_perfect_date === yesterday) return streak.current_day + 1
+  return streak.current_day > 0 ? streak.current_day + 1 : 1
+}
+
+function isStreakBroken(
+  streak: Streak,
+  today: string,
+  yesterday: string,
+  activeChallenge: boolean,
+): boolean {
+  if (!activeChallenge) return false
+  const pastFirstDay = today > (streak.streak_start_date ?? today)
+  const missedPreviousDay = streak.last_perfect_date !== yesterday
+  const notCompletedToday = streak.last_perfect_date !== today
+  return pastFirstDay && missedPreviousDay && notCompletedToday
 }
 
 export function useChallenge() {
@@ -97,6 +98,7 @@ export function useChallenge() {
   const [loading, setLoading] = useState(true)
   const [justCompleted, setJustCompleted] = useState(false)
   const [sabbathThisWeek, setSabbathThisWeek] = useState<string | null>(null)
+  const [failedDay, setFailedDay] = useState<number | null>(null)
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
@@ -109,10 +111,12 @@ export function useChallenge() {
   useEffect(() => {
     if (!user) {
       setAdvancedTo(null)
+      setFailedDay(null)
       return
     }
     const stored = window.localStorage.getItem(advancedStorageKey(user.id))
     setAdvancedTo(stored)
+    setFailedDay(loadFailedDay(user.id))
   }, [user])
 
   const today = useMemo(() => {
@@ -134,11 +138,12 @@ export function useChallenge() {
 
   const phase: Phase = useMemo(() => {
     if (loading) return 'loading'
+    if (failedDay != null) return 'failed'
     if (items.length < REQUIRED_ITEMS) return 'setup'
     const n = topTwelve.length
     if (n < MIN_TOP || n > MAX_TOP) return 'select'
     return 'ready'
-  }, [loading, items.length, topTwelve.length])
+  }, [loading, items.length, topTwelve.length, failedDay])
 
   const displayDay = useMemo((): { day: number; completedToday: boolean } => {
     if (!streak) return { day: 1, completedToday: false }
@@ -191,13 +196,16 @@ export function useChallenge() {
 
     setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
 
-    setItems((itemsRes.data ?? []) as Item[])
+    const loadedItems = (itemsRes.data ?? []) as Item[]
+    setItems(loadedItems)
 
     const log = logRes.data as DailyLog | null
     setTodayLog(log)
     todayLogRef.current = log
 
     let s = streakRes.data as Streak | null
+    const topCount = loadedItems.filter(i => i.is_top_twelve).length
+    const activeChallenge = topCount >= MIN_TOP && topCount <= MAX_TOP
 
     if (!s) {
       const { data } = await supabase
@@ -206,26 +214,19 @@ export function useChallenge() {
         .select()
         .single()
       s = data as Streak
-    } else if (s.last_perfect_date && s.last_perfect_date !== today) {
-      // Streak only breaks when the user skipped a whole challenge day —
-      // i.e., their last perfect day is older than "yesterday" relative to today.
-      // Today itself is still in progress; we don't punish a user for opening
-      // the app before they've finished today's tasks.
-      const streakBroken = s.last_perfect_date < yesterday
+    }
 
-      if (streakBroken) {
-        const { data } = await supabase
-          .from('streaks')
-          .update({
-            current_day: 0,
-            last_perfect_date: null,
-            streak_start_date: today,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', user.id)
-          .select()
-          .single()
-        s = data as Streak
+    if (s && activeChallenge && isStreakBroken(s, today, yesterday, activeChallenge)) {
+      const day = computeFailedDay(s, yesterday)
+      saveFailedDay(user.id, day)
+      setFailedDay(day)
+    } else if (user) {
+      const storedFailed = loadFailedDay(user.id)
+      if (storedFailed != null && s && activeChallenge && isStreakBroken(s, today, yesterday, activeChallenge)) {
+        setFailedDay(storedFailed)
+      } else if (storedFailed != null && s && !isStreakBroken(s, today, yesterday, activeChallenge)) {
+        clearFailedDay(user.id)
+        setFailedDay(null)
       }
     }
 
@@ -420,11 +421,17 @@ export function useChallenge() {
       .eq('user_id', user.id)
 
     window.localStorage.removeItem(advancedStorageKey(user.id))
+    clearFailedDay(user.id)
     setAdvancedTo(null)
+    setFailedDay(null)
     setSabbathThisWeek(null)
 
     await loadData()
   }, [user, today, loadData])
+
+  const restartFromFailure = useCallback(async () => {
+    await resetToSelect()
+  }, [resetToSelect])
 
   const advanceDay = useCallback(() => {
     if (!user) return
@@ -553,6 +560,11 @@ export function useChallenge() {
         .update({ completed_item_ids: newIds, all_completed: allDone })
         .eq('id', log.id)
 
+      if (allDone) {
+        clearFailedDay(user.id)
+        setFailedDay(null)
+      }
+
       if (allDone && streakRef.current && streakRef.current.last_perfect_date !== today) {
         const s = streakRef.current
         const newDay = s.last_perfect_date === yesterday ? s.current_day + 1 : 1
@@ -592,6 +604,7 @@ export function useChallenge() {
     completedIds,
     justCompleted,
     setJustCompleted,
+    failedDay,
     saveItems,
     saveTopTwelve,
     updateItemText,
@@ -600,6 +613,7 @@ export function useChallenge() {
     getItemConsecutiveDays,
     toggleItem,
     resetToSelect,
+    restartFromFailure,
     advanceDay,
     sabbathStatus,
     takeSabbath,

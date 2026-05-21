@@ -6,6 +6,7 @@ import { AuthPage } from './pages/AuthPage'
 import { SetupPage } from './pages/SetupPage'
 import { SelectPage } from './pages/SelectPage'
 import { DashboardPage } from './pages/DashboardPage'
+import { FailedDayPage } from './pages/FailedDayPage'
 
 function App() {
   return (
@@ -35,6 +36,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/failed"
+            element={
+              <ProtectedRoute>
+                <FailedDayPage />
               </ProtectedRoute>
             }
           />

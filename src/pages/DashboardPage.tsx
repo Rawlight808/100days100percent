@@ -4,13 +4,15 @@ import { useAuth } from '../contexts/AuthContext'
 import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
 import { useReminder } from '../hooks/useReminder'
+import { useDeadlineNotifications } from '../hooks/useDeadlineNotifications'
+import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
 import { getDailyMessage } from '../data/dailyMessages'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import './DashboardPage.css'
 
 export function DashboardPage() {
-  const { signOut } = useAuth()
+  const { user, signOut } = useAuth()
   const {
     topTwelve,
     todayLog,
@@ -32,6 +34,11 @@ export function DashboardPage() {
   const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
   const { settings: reminder, permission: notifPerm, enable: enableReminder, disable: disableReminder } = useReminder()
+  const { requestPermission: requestDeadlineNotifs } = useDeadlineNotifications(
+    user?.id,
+    phase === 'ready' && !displayDay.completedToday,
+    displayDay.completedToday,
+  )
 
   const [celebrate, setCelebrate] = useState(false)
   const [journal, setJournal] = useState('')
@@ -50,6 +57,12 @@ export function DashboardPage() {
       setJournal(todayLog.journal_entry)
     }
   }, [todayLog])
+
+  useEffect(() => {
+    if (phase !== 'ready' || displayDay.completedToday) return
+    if (typeof Notification === 'undefined' || Notification.permission !== 'default') return
+    void requestDeadlineNotifs()
+  }, [phase, displayDay.completedToday, requestDeadlineNotifs])
 
   useEffect(() => {
     if (justCompleted) {
@@ -121,6 +134,7 @@ export function DashboardPage() {
 
   if (phase === 'setup') return <Navigate to="/setup" replace />
   if (phase === 'select') return <Navigate to="/select" replace />
+  if (phase === 'failed') return <Navigate to="/failed" replace />
 
   const dailyTotal = topTwelve.length
   const completedCount = topTwelve.filter(item => completedIds.has(item.id)).length
@@ -143,8 +157,11 @@ export function DashboardPage() {
               <div className="dashboard__menu-section">
                 <h3 className="dashboard__menu-heading">The Rules</h3>
                 <ol className="dashboard__rules-list">
-                  <li>All items must be completed every day or the 100 days resets.</li>
-                  <li>Daily progress must be reported before noon the following day or the 100 days resets.</li>
+                  <li>All items must be completed every day or you start over from Day 1.</li>
+                  <li>
+                    Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. Miss one day and
+                    your progress resets — no exceptions.
+                  </li>
                   <li>You may change an item on your list after completing it three days in a row.</li>
                   <li>You may take one sabbath day per week after your first three perfect days.</li>
                 </ol>
@@ -159,6 +176,17 @@ export function DashboardPage() {
                   <li>You still cannot do the banned items on your list.</li>
                   <li>The day counts toward your 100 and advances your streak.</li>
                 </ul>
+              </div>
+
+              <div className="dashboard__menu-section">
+                <h3 className="dashboard__menu-heading">Deadline Alerts</h3>
+                <p className="dashboard__reminder-denied" style={{ color: 'rgba(255,255,255,0.45)' }}>
+                  {notifPerm === 'granted'
+                    ? 'Active: midnight warning plus hourly alerts from 11 PM–3 AM if today is incomplete.'
+                    : notifPerm === 'denied'
+                      ? 'Enable notifications in browser settings for midnight and late-night deadline alerts.'
+                      : 'Allow notifications when prompted — you will get a midnight warning and hourly alerts in the last 5 hours before the day ends.'}
+                </p>
               </div>
 
               <div className="dashboard__menu-section">
