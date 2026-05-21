@@ -3,16 +3,15 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
-import { useReminder } from '../hooks/useReminder'
 import { useDeadlineNotifications } from '../hooks/useDeadlineNotifications'
-import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
 import { getDailyMessage } from '../data/dailyMessages'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
+import { AppNav } from '../components/AppNav'
 import './DashboardPage.css'
 
 export function DashboardPage() {
-  const { user, signOut } = useAuth()
+  const { user } = useAuth()
   const {
     topTwelve,
     todayLog,
@@ -33,7 +32,6 @@ export function DashboardPage() {
   } = useChallenge()
   const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
-  const { settings: reminder, permission: notifPerm, enable: enableReminder, disable: disableReminder } = useReminder()
   const { requestPermission: requestDeadlineNotifs } = useDeadlineNotifications(
     user?.id,
     phase === 'ready' && !displayDay.completedToday,
@@ -44,9 +42,6 @@ export function DashboardPage() {
   const [journal, setJournal] = useState('')
   const [journalSaved, setJournalSaved] = useState(false)
   const journalTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [reminderHour, setReminderHour] = useState(reminder.hour)
-  const [reminderMinute, setReminderMinute] = useState(reminder.minute)
 
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
@@ -142,132 +137,12 @@ export function DashboardPage() {
 
   return (
     <div className="dashboard">
-      <div className="dashboard__nav">
-        <div className="dashboard__menu-wrap">
-          <button
-            className="dashboard__nav-btn"
-            type="button"
-            onClick={() => setMenuOpen(o => !o)}
-          >
-            Menu {menuOpen ? '▲' : '▼'}
-          </button>
-
-          {menuOpen && (
-            <div className="dashboard__menu">
-              <div className="dashboard__menu-section">
-                <h3 className="dashboard__menu-heading">The Rules</h3>
-                <ol className="dashboard__rules-list">
-                  <li>All items must be completed every day or you start over from Day 1.</li>
-                  <li>
-                    Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. Miss one day and
-                    your progress resets — no exceptions.
-                  </li>
-                  <li>You may change an item on your list after completing it three days in a row.</li>
-                  <li>You may take one sabbath day per week after your first three perfect days.</li>
-                </ol>
-              </div>
-
-              <div className="dashboard__menu-section">
-                <h3 className="dashboard__menu-heading">Sabbath</h3>
-                <ul className="dashboard__rules-list">
-                  <li>One day of rest per calendar week (Sunday through Saturday).</li>
-                  <li>Unlocks after your first three perfect days.</li>
-                  <li>You do not have to fulfill the tasks on your list.</li>
-                  <li>You still cannot do the banned items on your list.</li>
-                  <li>The day counts toward your 100 and advances your streak.</li>
-                </ul>
-              </div>
-
-              <div className="dashboard__menu-section">
-                <h3 className="dashboard__menu-heading">Deadline Alerts</h3>
-                <p className="dashboard__reminder-denied" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                  {notifPerm === 'granted'
-                    ? 'Active: midnight warning plus hourly alerts from 11 PM–3 AM if today is incomplete.'
-                    : notifPerm === 'denied'
-                      ? 'Enable notifications in browser settings for midnight and late-night deadline alerts.'
-                      : 'Allow notifications when prompted — you will get a midnight warning and hourly alerts in the last 5 hours before the day ends.'}
-                </p>
-              </div>
-
-              <div className="dashboard__menu-section">
-                <h3 className="dashboard__menu-heading">Daily Reminder</h3>
-                {notifPerm === 'denied' ? (
-                  <p className="dashboard__reminder-denied">
-                    Notifications are blocked. Enable them in your browser settings.
-                  </p>
-                ) : reminder.enabled ? (
-                  <div className="dashboard__reminder-active">
-                    <p>
-                      Reminder set for{' '}
-                      <strong>
-                        {String(reminder.hour).padStart(2, '0')}:
-                        {String(reminder.minute).padStart(2, '0')}
-                      </strong>
-                    </p>
-                    <button className="dashboard__reminder-btn" onClick={disableReminder}>
-                      Turn Off
-                    </button>
-                  </div>
-                ) : (
-                  <div className="dashboard__reminder-setup">
-                    <div className="dashboard__reminder-time">
-                      <select
-                        value={reminderHour}
-                        onChange={e => setReminderHour(Number(e.target.value))}
-                        className="dashboard__reminder-select"
-                      >
-                        {Array.from({ length: 24 }, (_, h) => (
-                          <option key={h} value={h}>
-                            {String(h).padStart(2, '0')}
-                          </option>
-                        ))}
-                      </select>
-                      <span>:</span>
-                      <select
-                        value={reminderMinute}
-                        onChange={e => setReminderMinute(Number(e.target.value))}
-                        className="dashboard__reminder-select"
-                      >
-                        {[0, 15, 30, 45].map(m => (
-                          <option key={m} value={m}>
-                            {String(m).padStart(2, '0')}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <button
-                      className="dashboard__reminder-btn"
-                      onClick={() => enableReminder(reminderHour, reminderMinute)}
-                    >
-                      Enable Reminder
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="dashboard__menu-section">
-                <h3 className="dashboard__menu-heading">Start Over</h3>
-                <p className="dashboard__reset-desc">
-                  Re-pick your daily habits from your 100 list. Your streak and
-                  today&apos;s progress will be reset.
-                </p>
-                <button
-                  className="dashboard__reset-btn"
-                  onClick={async () => {
-                    await resetToSelect()
-                    navigate('/select', { replace: true })
-                  }}
-                >
-                  Reset &amp; Choose Again
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-        <button className="dashboard__signout" type="button" onClick={signOut}>
-          Sign Out
-        </button>
-      </div>
+      <AppNav
+        onStartOver={async () => {
+          await resetToSelect()
+          navigate('/select', { replace: true })
+        }}
+      />
 
       <DayCounter
         day={displayDay.day}

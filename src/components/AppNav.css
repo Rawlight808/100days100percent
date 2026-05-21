@@ -1,0 +1,172 @@
+.app-nav {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.app-nav__btn {
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 0.85rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.app-nav__btn:hover {
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.app-nav__menu-wrap {
+  position: relative;
+}
+
+.app-nav__menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  left: 0;
+  z-index: 50;
+  width: 340px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  background: #111120;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.app-nav__menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-nav__menu-section + .app-nav__menu-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 1rem;
+}
+
+.app-nav__menu-heading {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #f59e0b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-nav__rules-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app-nav__rules-list li {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+}
+
+.app-nav__muted {
+  font-size: 0.82rem;
+  color: rgba(255, 255, 255, 0.35);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.app-nav__reminder-active {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-nav__reminder-active p {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.55);
+  margin: 0;
+}
+
+.app-nav__reminder-active strong {
+  color: #f59e0b;
+}
+
+.app-nav__reminder-setup {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.app-nav__reminder-time {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.app-nav__reminder-select {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-family: inherit;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.5rem;
+  outline: none;
+}
+
+.app-nav__reminder-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  transition: background 0.2s ease;
+}
+
+.app-nav__reminder-btn:hover {
+  background: rgba(245, 158, 11, 0.25);
+}
+
+.app-nav__reset-btn {
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  transition: background 0.2s ease;
+  align-self: flex-start;
+}
+
+.app-nav__reset-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+}
+
+@media (max-width: 640px) {
+  .app-nav__menu {
+    width: calc(100vw - 2rem);
+    left: 0;
+    right: 0;
+  }
+
+  .app-nav__reminder-setup {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

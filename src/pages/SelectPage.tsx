@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge, MIN_TOP, MAX_TOP, type Item } from '../hooks/useChallenge'
+import { AppNav } from '../components/AppNav'
 import './SelectPage.css'
 
 export function SelectPage() {
@@ -107,6 +108,11 @@ export function SelectPage() {
 
   return (
     <div className="select">
+      <AppNav
+        onStartOver={() => navigate('/setup')}
+        startOverLabel="Edit my 100 list"
+        startOverDesc="Re-edit the full 100-item list. You'll come back here to re-pick your daily habits."
+      />
       <div className="select__header">
         <h1 className="select__title">Choose your daily habits</h1>
         <p className="select__subtitle">
