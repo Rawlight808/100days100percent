@@ -7,6 +7,7 @@ import { useDeadlineNotifications } from '../hooks/useDeadlineNotifications'
 import { getDailyMessage } from '../data/dailyMessages'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
+import { CaveatModal } from '../components/CaveatModal'
 import { AppNav } from '../components/AppNav'
 import './DashboardPage.css'
 
@@ -27,6 +28,7 @@ export function DashboardPage() {
     saveJournal,
     getItemConsecutiveDays,
     updateItemText,
+    updateItemCaveat,
     sabbathStatus,
     takeSabbath,
   } = useChallenge()
@@ -46,6 +48,7 @@ export function DashboardPage() {
   const [editingItemId, setEditingItemId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
+  const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
 
   useEffect(() => {
     if (todayLog?.journal_entry != null) {
@@ -232,8 +235,10 @@ export function DashboardPage() {
               checked={completedIds.has(item.id)}
               index={i}
               disabled={displayDay.completedToday}
+              caveat={item.caveat}
               onToggle={() => handleToggle(item.id)}
               onEdit={() => handleStartEdit(item.id, item.text)}
+              onCaveat={() => setCaveatItemId(item.id)}
             />
           )
         })}
@@ -286,6 +291,20 @@ export function DashboardPage() {
           <div className="dashboard__celebration-burst" />
         </div>
       )}
+
+      {caveatItemId && (() => {
+        const target = topTwelve.find(i => i.id === caveatItemId)
+        if (!target) return null
+        return (
+          <CaveatModal
+            itemText={target.text}
+            initialCaveat={target.caveat ?? ''}
+            onSave={caveat => updateItemCaveat(target.id, caveat)}
+            onRemove={() => updateItemCaveat(target.id, null)}
+            onClose={() => setCaveatItemId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

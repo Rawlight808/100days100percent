@@ -2,16 +2,25 @@ import { useState, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge, MIN_TOP, MAX_TOP, type Item } from '../hooks/useChallenge'
 import { AppNav } from '../components/AppNav'
+import { CaveatModal } from '../components/CaveatModal'
 import './SelectPage.css'
 
 export function SelectPage() {
-  const { items, phase, loading, saveTopTwelve, updateItemText, reorderItems } =
-    useChallenge()
+  const {
+    items,
+    phase,
+    loading,
+    saveTopTwelve,
+    updateItemText,
+    updateItemCaveat,
+    reorderItems,
+  } = useChallenge()
   const navigate = useNavigate()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
+  const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
   const editRef = useRef<HTMLInputElement>(null)
 
   const dragItem = useRef<number | null>(null)
@@ -117,7 +126,8 @@ export function SelectPage() {
         <h1 className="select__title">Choose your daily habits</h1>
         <p className="select__subtitle">
           Pick between {MIN_TOP} and {MAX_TOP} items from your list — your daily
-          commitment for 100 days. Drag to reorder, tap the pencil to edit.
+          commitment for 100 days. Drag to reorder, tap the pencil to edit, or
+          add a caveat to a rule.
         </p>
       </div>
 
@@ -195,24 +205,45 @@ export function SelectPage() {
               )}
 
               {!isEditing && (
-                <button
-                  className="select__item-edit"
-                  title="Edit item"
-                  onClick={e => {
-                    e.stopPropagation()
-                    startEdit(item)
-                  }}
-                >
-                  <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                    <path
-                      d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
+                <>
+                  <button
+                    className={`select__item-caveat${item.caveat ? ' select__item-caveat--set' : ''}`}
+                    title={item.caveat ? 'Caveat: ' + item.caveat : 'Add a caveat'}
+                    onClick={e => {
+                      e.stopPropagation()
+                      setCaveatItemId(item.id)
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path
+                        d="M2.5 3.5h11v7H8.5L5.5 13v-2.5h-3z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinejoin="round"
+                        fill={item.caveat ? 'currentColor' : 'none'}
+                        fillOpacity={item.caveat ? 0.2 : 0}
+                      />
+                    </svg>
+                  </button>
+                  <button
+                    className="select__item-edit"
+                    title="Edit item"
+                    onClick={e => {
+                      e.stopPropagation()
+                      startEdit(item)
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                      <path
+                        d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </>
               )}
 
               <div
@@ -258,6 +289,20 @@ export function SelectPage() {
           updated items.
         </p>
       </div>
+
+      {caveatItemId && (() => {
+        const target = items.find(i => i.id === caveatItemId)
+        if (!target) return null
+        return (
+          <CaveatModal
+            itemText={target.text}
+            initialCaveat={target.caveat ?? ''}
+            onSave={caveat => updateItemCaveat(target.id, caveat)}
+            onRemove={() => updateItemCaveat(target.id, null)}
+            onClose={() => setCaveatItemId(null)}
+          />
+        )
+      })()}
     </div>
   )
 }

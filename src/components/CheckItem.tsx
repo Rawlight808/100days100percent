@@ -6,11 +6,22 @@ interface CheckItemProps {
   checked: boolean
   index: number
   disabled?: boolean
+  caveat?: string | null
   onToggle: () => void
   onEdit?: () => void
+  onCaveat?: () => void
 }
 
-export function CheckItem({ text, checked, index, disabled, onToggle, onEdit }: CheckItemProps) {
+export function CheckItem({
+  text,
+  checked,
+  index,
+  disabled,
+  caveat,
+  onToggle,
+  onEdit,
+  onCaveat,
+}: CheckItemProps) {
   const [animating, setAnimating] = useState(false)
 
   const handleClick = useCallback(() => {
@@ -59,6 +70,27 @@ export function CheckItem({ text, checked, index, disabled, onToggle, onEdit }: 
         </svg>
       </div>
       <span className="check-item__text">{text}</span>
+      {onCaveat && (
+        <button
+          className={`check-item__caveat${caveat ? ' check-item__caveat--set' : ''}`}
+          title={caveat ? 'View or edit caveat' : 'Add a caveat'}
+          onClick={e => {
+            e.stopPropagation()
+            onCaveat()
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path
+              d="M2.5 3.5h11v7H8.5L5.5 13v-2.5h-3z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              fill={caveat ? 'currentColor' : 'none'}
+              fillOpacity={caveat ? 0.2 : 0}
+            />
+          </svg>
+        </button>
+      )}
       {onEdit && (
         <button
           className="check-item__edit"

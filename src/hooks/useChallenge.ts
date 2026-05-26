@@ -21,6 +21,7 @@ export interface Item {
   text: string
   is_top_twelve: boolean
   position: number
+  caveat?: string | null
 }
 
 export interface DailyLog {
@@ -388,6 +389,21 @@ export function useChallenge() {
     [user],
   )
 
+  const updateItemCaveat = useCallback(
+    async (itemId: string, caveat: string | null) => {
+      if (!user) return
+      const trimmed = caveat?.trim() ?? ''
+      const value = trimmed.length > 0 ? trimmed : null
+
+      await supabase.from('items').update({ caveat: value }).eq('id', itemId)
+
+      setItems(prev =>
+        prev.map(item => (item.id === itemId ? { ...item, caveat: value } : item)),
+      )
+    },
+    [user],
+  )
+
   const reorderItems = useCallback(
     async (reorderedItems: Item[]) => {
       if (!user) return
@@ -608,6 +624,7 @@ export function useChallenge() {
     saveItems,
     saveTopTwelve,
     updateItemText,
+    updateItemCaveat,
     reorderItems,
     saveJournal,
     getItemConsecutiveDays,

@@ -127,7 +127,8 @@
   box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
 }
 
-.select__item-edit {
+.select__item-edit,
+.select__item-caveat {
   background: none;
   border: none;
   padding: 0.25rem;
@@ -140,9 +141,19 @@
   transition: color 0.15s ease, background 0.15s ease;
 }
 
-.select__item-edit:hover {
+.select__item-edit:hover,
+.select__item-caveat:hover {
   color: rgba(255, 255, 255, 0.6);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.select__item-caveat--set {
+  color: #f59e0b;
+}
+
+.select__item-caveat--set:hover {
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.08);
 }
 
 .select__item-check {

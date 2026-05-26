@@ -1,0 +1,163 @@
+.caveat-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: caveat-fade-in 0.15s ease-out;
+}
+
+.caveat-modal {
+  width: 100%;
+  max-width: 440px;
+  background: #15110a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 14px;
+  padding: 1.4rem 1.4rem 1.1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  animation: caveat-pop-in 0.18s ease-out;
+}
+
+.caveat-modal__header {
+  margin-bottom: 0.9rem;
+}
+
+.caveat-modal__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #f59e0b;
+}
+
+.caveat-modal__rule {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.caveat-modal__textarea {
+  width: 100%;
+  min-height: 110px;
+  resize: vertical;
+  padding: 0.7rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.caveat-modal__textarea:focus {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.caveat-modal__textarea::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.caveat-modal__count {
+  margin: 0.4rem 0 0;
+  font-size: 0.72rem;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.caveat-modal__actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 0.5rem;
+}
+
+.caveat-modal__actions-right {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.caveat-modal__btn {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.caveat-modal__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.caveat-modal__btn--save {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: #000;
+}
+
+.caveat-modal__btn--save:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.3);
+}
+
+.caveat-modal__btn--cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.caveat-modal__btn--cancel:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.caveat-modal__btn--remove {
+  background: transparent;
+  color: rgba(248, 113, 113, 0.85);
+  border-color: rgba(248, 113, 113, 0.25);
+}
+
+.caveat-modal__btn--remove:hover:not(:disabled) {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.5);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+@keyframes caveat-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes caveat-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .caveat-modal {
+    padding: 1.15rem 1.1rem 1rem;
+    border-radius: 12px;
+  }
+}
