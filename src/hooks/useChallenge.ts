@@ -347,6 +347,25 @@ export function useChallenge() {
     [user, today],
   )
 
+  const getJournalEntries = useCallback(
+    async (): Promise<Record<string, string>> => {
+      if (!user) return {}
+      const { data } = await supabase
+        .from('daily_logs')
+        .select('log_date, journal_entry')
+        .eq('user_id', user.id)
+        .not('journal_entry', 'is', null)
+
+      const map: Record<string, string> = {}
+      for (const row of (data ?? []) as { log_date: string; journal_entry: string | null }[]) {
+        const entry = row.journal_entry?.trim()
+        if (entry) map[row.log_date] = row.journal_entry as string
+      }
+      return map
+    },
+    [user],
+  )
+
   const getItemConsecutiveDays = useCallback(
     async (itemId: string): Promise<number> => {
       if (!user) return 0
@@ -612,6 +631,7 @@ export function useChallenge() {
   return {
     items,
     topTwelve,
+    today,
     todayLog,
     streak,
     displayDay,
@@ -627,6 +647,7 @@ export function useChallenge() {
     updateItemCaveat,
     reorderItems,
     saveJournal,
+    getJournalEntries,
     getItemConsecutiveDays,
     toggleItem,
     resetToSelect,

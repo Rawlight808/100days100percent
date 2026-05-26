@@ -8,6 +8,8 @@ import { getDailyMessage } from '../data/dailyMessages'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import { CaveatModal } from '../components/CaveatModal'
+import { JournalCalendar } from '../components/JournalCalendar'
+import { JournalEntryModal } from '../components/JournalEntryModal'
 import { AppNav } from '../components/AppNav'
 import './DashboardPage.css'
 
@@ -15,6 +17,7 @@ export function DashboardPage() {
   const { user } = useAuth()
   const {
     topTwelve,
+    today,
     todayLog,
     displayDay,
     phase,
@@ -26,6 +29,7 @@ export function DashboardPage() {
     resetToSelect,
     advanceDay,
     saveJournal,
+    getJournalEntries,
     getItemConsecutiveDays,
     updateItemText,
     updateItemCaveat,
@@ -49,6 +53,34 @@ export function DashboardPage() {
   const [editText, setEditText] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
+  const [journalEntries, setJournalEntries] = useState<Record<string, string>>({})
+  const [viewingDate, setViewingDate] = useState<string | null>(null)
+  const [calendarOpen, setCalendarOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void getJournalEntries().then(entries => {
+      if (!cancelled) setJournalEntries(entries)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [getJournalEntries])
+
+  useEffect(() => {
+    if (todayLog?.journal_entry && todayLog.journal_entry.trim().length > 0) {
+      setJournalEntries(prev => ({ ...prev, [today]: todayLog.journal_entry as string }))
+    }
+  }, [todayLog, today])
+
+  useEffect(() => {
+    if (!calendarOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCalendarOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [calendarOpen])
 
   useEffect(() => {
     if (todayLog?.journal_entry != null) {
@@ -275,8 +307,34 @@ export function DashboardPage() {
 
       <div className="dashboard__journal">
         <h3 className="dashboard__journal-title">
-          Daily Journal
+          <span className="dashboard__journal-title-text">Daily Journal</span>
           {journalSaved && <span className="dashboard__journal-saved">Saved</span>}
+          <button
+            type="button"
+            className="dashboard__journal-cal-btn"
+            title="Browse past entries"
+            aria-label="Browse past entries"
+            onClick={() => setCalendarOpen(true)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+              <rect
+                x="1.5"
+                y="2.75"
+                width="13"
+                height="11.75"
+                rx="1.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+              />
+              <path d="M1.5 6h13" stroke="currentColor" strokeWidth="1.5" />
+              <path
+                d="M5 1.5v2.5M11 1.5v2.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </button>
         </h3>
         <textarea
           className="dashboard__journal-textarea"
@@ -305,6 +363,50 @@ export function DashboardPage() {
           />
         )
       })()}
+
+      {calendarOpen && (
+        <div
+          className="dashboard__cal-backdrop"
+          onClick={() => setCalendarOpen(false)}
+          role="presentation"
+        >
+          <div
+            className="dashboard__cal-popup"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Browse journal entries"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="dashboard__cal-popup-header">
+              <p className="dashboard__cal-popup-label">Past entries</p>
+              <button
+                type="button"
+                className="dashboard__cal-popup-close"
+                onClick={() => setCalendarOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+            <JournalCalendar
+              entriesByDate={journalEntries}
+              today={today}
+              onSelectDate={date => {
+                setCalendarOpen(false)
+                setViewingDate(date)
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {viewingDate && (
+        <JournalEntryModal
+          date={viewingDate}
+          entry={journalEntries[viewingDate] ?? null}
+          onClose={() => setViewingDate(null)}
+        />
+      )}
     </div>
   )
 }
