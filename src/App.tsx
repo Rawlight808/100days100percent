@@ -7,6 +7,7 @@ import { SetupPage } from './pages/SetupPage'
 import { SelectPage } from './pages/SelectPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FailedDayPage } from './pages/FailedDayPage'
+import { AdminPage } from './pages/AdminPage'
 
 function App() {
   return (
@@ -44,6 +45,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <FailedDayPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <AdminPage />
               </ProtectedRoute>
             }
           />

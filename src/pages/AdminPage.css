@@ -1,0 +1,205 @@
+.admin {
+  min-height: 100vh;
+  padding: 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.admin__header {
+  margin-bottom: 2rem;
+}
+
+.admin__back {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.5);
+  padding: 0.3rem 0.7rem;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: all 0.15s ease;
+}
+
+.admin__back:hover {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.admin__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.6rem;
+  font-weight: 300;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.admin__subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.admin__section {
+  margin-bottom: 1.75rem;
+}
+
+.admin__label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245, 158, 11, 0.85);
+  margin-bottom: 0.55rem;
+}
+
+.admin__row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.admin__input {
+  flex: 1;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  padding: 0.6rem 0.8rem;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.admin__input:focus {
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 0 2px rgba(245, 158, 11, 0.15);
+}
+
+.admin__input--narrow {
+  flex: 0 0 110px;
+}
+
+.admin__btn {
+  padding: 0.6rem 1.1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.7);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.admin__btn:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.95);
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.admin__btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.admin__btn--primary {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border-color: transparent;
+  color: #000;
+}
+
+.admin__btn--primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.3);
+  color: #000;
+}
+
+.admin__error {
+  margin: -0.5rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  color: #fca5a5;
+  font-size: 0.85rem;
+}
+
+.admin__success {
+  margin: -0.5rem 0 1rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #6ee7b7;
+  font-size: 0.85rem;
+}
+
+.admin__card {
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 1.4rem;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.admin__card-title {
+  margin: 0 0 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  word-break: break-all;
+}
+
+.admin__details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  column-gap: 1.25rem;
+  row-gap: 0.5rem;
+  margin: 0 0 1.5rem;
+  font-size: 0.85rem;
+}
+
+.admin__details dt {
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 500;
+}
+
+.admin__details dd {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin__mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.admin__apply {
+  padding-top: 1.2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin__hint {
+  margin: 0.6rem 0 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.35);
+  line-height: 1.5;
+}
+
+@media (max-width: 640px) {
+  .admin {
+    padding: 1.5rem 1rem;
+  }
+  .admin__row {
+    flex-direction: column;
+  }
+  .admin__input--narrow {
+    flex: none;
+  }
+}
