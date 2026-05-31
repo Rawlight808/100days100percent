@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase, isAdminEmail } from '../lib/supabase'
+import { naturalToday } from '../lib/challengeDay'
 import './AdminPage.css'
 
 interface UserStatus {
@@ -90,6 +91,7 @@ export function AdminPage() {
     const { data, error: rpcError } = await supabase.rpc('admin_set_user_day', {
       target_user: target.user_id,
       new_day: day,
+      client_today: naturalToday(),
     })
     setBusy(false)
 
