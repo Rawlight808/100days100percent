@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import {
   DndContext,
@@ -21,20 +21,15 @@ import { CSS } from '@dnd-kit/utilities'
 import { useChallenge, MIN_TOP, MAX_TOP, type Item } from '../hooks/useChallenge'
 import { AppNav } from '../components/AppNav'
 import { CaveatModal } from '../components/CaveatModal'
+import { EditItemModal } from '../components/EditItemModal'
 import './SelectPage.css'
 
 interface SortableRowProps {
   item: Item
   index: number
   selected: boolean
-  isEditing: boolean
-  editText: string
-  setEditText: (v: string) => void
-  commitEdit: () => void
-  cancelEdit: () => void
-  editRef: React.RefObject<HTMLInputElement | null>
   onToggle: (id: string) => void
-  onStartEdit: (item: Item) => void
+  onStartEdit: (id: string) => void
   onOpenCaveat: (id: string) => void
 }
 
@@ -42,12 +37,6 @@ function SortableRow({
   item,
   index,
   selected,
-  isEditing,
-  editText,
-  setEditText,
-  commitEdit,
-  cancelEdit,
-  editRef,
   onToggle,
   onStartEdit,
   onOpenCaveat,
@@ -59,7 +48,7 @@ function SortableRow({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: item.id, disabled: isEditing })
+  } = useSortable({ id: item.id })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -90,68 +79,50 @@ function SortableRow({
 
       <span className="select__item-num">{index + 1}</span>
 
-      {isEditing ? (
-        <input
-          ref={editRef}
-          className="select__item-input"
-          value={editText}
-          onChange={e => setEditText(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={e => {
-            if (e.key === 'Enter') commitEdit()
-            if (e.key === 'Escape') cancelEdit()
-          }}
-        />
-      ) : (
-        <span
-          className="select__item-text"
-          onClick={() => onToggle(item.id)}
-        >
-          {item.text}
-        </span>
-      )}
+      <span
+        className="select__item-text"
+        onClick={() => onToggle(item.id)}
+      >
+        {item.text}
+      </span>
 
-      {!isEditing && (
-        <>
-          <button
-            className={`select__item-caveat${item.caveat ? ' select__item-caveat--set' : ''}`}
-            title={item.caveat ? 'Caveat: ' + item.caveat : 'Add a caveat'}
-            onClick={e => {
-              e.stopPropagation()
-              onOpenCaveat(item.id)
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M2.5 3.5h11v7H8.5L5.5 13v-2.5h-3z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinejoin="round"
-                fill={item.caveat ? 'currentColor' : 'none'}
-                fillOpacity={item.caveat ? 0.2 : 0}
-              />
-            </svg>
-          </button>
-          <button
-            className="select__item-edit"
-            title="Edit item"
-            onClick={e => {
-              e.stopPropagation()
-              onStartEdit(item)
-            }}
-          >
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
-        </>
-      )}
+      <button
+        className={`select__item-caveat${item.caveat ? ' select__item-caveat--set' : ''}`}
+        title={item.caveat ? 'Caveat: ' + item.caveat : 'Add a caveat'}
+        onClick={e => {
+          e.stopPropagation()
+          onOpenCaveat(item.id)
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M2.5 3.5h11v7H8.5L5.5 13v-2.5h-3z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+            fill={item.caveat ? 'currentColor' : 'none'}
+            fillOpacity={item.caveat ? 0.2 : 0}
+          />
+        </svg>
+      </button>
+      <button
+        className="select__item-edit"
+        title="Edit item"
+        onClick={e => {
+          e.stopPropagation()
+          onStartEdit(item.id)
+        }}
+      >
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+          <path
+            d="M11.5 1.5l3 3L5 14H2v-3L11.5 1.5z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
 
       <div
         className="select__item-check"
@@ -186,10 +157,8 @@ export function SelectPage() {
   const navigate = useNavigate()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [saving, setSaving] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
-  const [editText, setEditText] = useState('')
+  const [editItemId, setEditItemId] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
-  const editRef = useRef<HTMLInputElement>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -208,10 +177,6 @@ export function SelectPage() {
     if (existing.length > 0) setSelectedIds(new Set(existing))
   }, [items])
 
-  useEffect(() => {
-    if (editingId && editRef.current) editRef.current.focus()
-  }, [editingId])
-
   if (loading) {
     return <div className="page-loading">Loading…</div>
   }
@@ -221,7 +186,6 @@ export function SelectPage() {
   if (phase === 'ready') return <Navigate to="/dashboard" replace />
 
   const toggle = (id: string) => {
-    if (editingId) return
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -231,26 +195,6 @@ export function SelectPage() {
       }
       return next
     })
-  }
-
-  const startEdit = (item: Item) => {
-    setEditingId(item.id)
-    setEditText(item.text)
-  }
-
-  const commitEdit = async () => {
-    if (!editingId) return
-    const trimmed = editText.trim()
-    if (trimmed && trimmed !== items.find(i => i.id === editingId)?.text) {
-      await updateItemText(editingId, trimmed)
-    }
-    setEditingId(null)
-    setEditText('')
-  }
-
-  const cancelEdit = () => {
-    setEditingId(null)
-    setEditText('')
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -322,14 +266,8 @@ export function SelectPage() {
                 item={item}
                 index={i}
                 selected={selectedIds.has(item.id)}
-                isEditing={editingId === item.id}
-                editText={editText}
-                setEditText={setEditText}
-                commitEdit={commitEdit}
-                cancelEdit={cancelEdit}
-                editRef={editRef}
                 onToggle={toggle}
-                onStartEdit={startEdit}
+                onStartEdit={setEditItemId}
                 onOpenCaveat={setCaveatItemId}
               />
             ))}
@@ -359,6 +297,18 @@ export function SelectPage() {
           updated items.
         </p>
       </div>
+
+      {editItemId && (() => {
+        const target = items.find(i => i.id === editItemId)
+        if (!target) return null
+        return (
+          <EditItemModal
+            initialText={target.text}
+            onSave={text => updateItemText(target.id, text)}
+            onClose={() => setEditItemId(null)}
+          />
+        )
+      })()}
 
       {caveatItemId && (() => {
         const target = items.find(i => i.id === caveatItemId)
