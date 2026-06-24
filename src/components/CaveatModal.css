@@ -92,6 +92,20 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
+.caveat-modal__allowance {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(245, 158, 11, 0.85);
+}
+
+.caveat-modal__error {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #f87171;
+}
+
 .caveat-modal__actions {
   display: flex;
   justify-content: space-between;

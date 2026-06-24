@@ -1,12 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import './CaveatModal.css'
 
+type SaveResult = { ok: boolean; error?: string }
+
 interface CaveatModalProps {
   itemText: string
   initialCaveat: string
-  onSave: (caveat: string) => void | Promise<void>
-  onRemove?: () => void | Promise<void>
+  onSave: (caveat: string) => void | Promise<void> | SaveResult | Promise<SaveResult>
+  onRemove?: () => void | Promise<void> | SaveResult | Promise<SaveResult>
   onClose: () => void
+  /** How many new caveats remain in the current rolling window. */
+  remaining?: number
+  /** Total caveats allowed per window (for messaging). */
+  max?: number
+  /** Length of the rolling window in days (for messaging). */
+  windowDays?: number
 }
 
 const MAX_LENGTH = 280
@@ -17,10 +25,17 @@ export function CaveatModal({
   onSave,
   onRemove,
   onClose,
+  remaining,
+  max,
+  windowDays,
 }: CaveatModalProps) {
   const [value, setValue] = useState(initialCaveat)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+
+  const isNew = initialCaveat.trim().length === 0
+  const outOfAllowance = isNew && remaining != null && remaining <= 0
 
   useEffect(() => {
     textareaRef.current?.focus()
@@ -37,8 +52,13 @@ export function CaveatModal({
 
   const handleSave = async () => {
     setSaving(true)
-    await onSave(value)
+    setError(null)
+    const result = await onSave(value)
     setSaving(false)
+    if (result && typeof result === 'object' && result.ok === false) {
+      setError(result.error ?? 'Could not save this caveat.')
+      return
+    }
     onClose()
   }
 
@@ -49,8 +69,6 @@ export function CaveatModal({
     setSaving(false)
     onClose()
   }
-
-  const remaining = MAX_LENGTH - value.length
 
   return (
     <div className="caveat-modal__backdrop" onClick={onClose} role="presentation">
@@ -73,6 +91,7 @@ export function CaveatModal({
           maxLength={MAX_LENGTH}
           placeholder="e.g. Except on family birthdays — one slice of cake only."
           onChange={e => setValue(e.target.value)}
+          disabled={outOfAllowance}
           onKeyDown={e => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
               e.preventDefault()
@@ -80,7 +99,17 @@ export function CaveatModal({
             }
           }}
         />
-        <p className="caveat-modal__count">{remaining} characters left</p>
+        <p className="caveat-modal__count">{MAX_LENGTH - value.length} characters left</p>
+
+        {isNew && remaining != null && (
+          <p className="caveat-modal__allowance">
+            {outOfAllowance
+              ? `No caveats left — you can only add ${max ?? remaining} every ${windowDays ?? 7} days.`
+              : `${remaining} caveat${remaining === 1 ? '' : 's'} left in the next ${windowDays ?? 7} days.`}
+          </p>
+        )}
+
+        {error && <p className="caveat-modal__error">{error}</p>}
 
         <div className="caveat-modal__actions">
           {onRemove && initialCaveat.trim().length > 0 && (
@@ -106,7 +135,7 @@ export function CaveatModal({
               type="button"
               className="caveat-modal__btn caveat-modal__btn--save"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || outOfAllowance}
             >
               {saving ? 'Saving…' : 'Save'}
             </button>

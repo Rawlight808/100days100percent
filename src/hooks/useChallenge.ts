@@ -37,6 +37,21 @@ export interface DailyLog {
 /** Days of perfect completion required before the sabbath unlocks. */
 export const SABBATH_UNLOCK_DAY = 3
 
+/** A caveat is a spent exception. You only get a few per rolling window. */
+export const MAX_CAVEATS_PER_WINDOW = 2
+/** Rolling window (in days) the caveat allowance is measured over. No rollover. */
+export const CAVEAT_WINDOW_DAYS = 7
+
+export interface CaveatStatus {
+  used: number
+  remaining: number
+  canAdd: boolean
+  max: number
+  windowDays: number
+  /** Challenge-day string when the next caveat slot frees up, or null if some are free now. */
+  nextAvailable: string | null
+}
+
 export interface Streak {
   user_id: string
   current_day: number
@@ -73,6 +88,11 @@ function clearFailedDay(userId: string) {
   localStorage.removeItem(failedStorageKey(userId))
 }
 
+/** Start of the rolling caveat window (inclusive), as a challenge-day string. */
+function caveatWindowStart(today: string): string {
+  return addDaysToDateStr(today, -(CAVEAT_WINDOW_DAYS - 1))
+}
+
 function computeFailedDay(streak: Streak, yesterday: string): number {
   if (streak.last_perfect_date === yesterday) return streak.current_day + 1
   return streak.current_day > 0 ? streak.current_day + 1 : 1
@@ -100,6 +120,7 @@ export function useChallenge() {
   const [justCompleted, setJustCompleted] = useState(false)
   const [sabbathThisWeek, setSabbathThisWeek] = useState<string | null>(null)
   const [failedDay, setFailedDay] = useState<number | null>(null)
+  const [caveatLog, setCaveatLog] = useState<string[]>([])
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
@@ -113,6 +134,7 @@ export function useChallenge() {
     if (!user) {
       setAdvancedTo(null)
       setFailedDay(null)
+      setCaveatLog([])
       return
     }
     const stored = window.localStorage.getItem(advancedStorageKey(user.id))
@@ -174,7 +196,7 @@ export function useChallenge() {
 
     const weekStart = weekStartStr(today)
 
-    const [itemsRes, logRes, streakRes, sabbathRes] = await Promise.all([
+    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes] = await Promise.all([
       supabase.from('items').select('*').eq('user_id', user.id).order('position'),
       supabase
         .from('daily_logs')
@@ -193,9 +215,18 @@ export function useChallenge() {
         .order('log_date', { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from('caveat_events')
+        .select('log_date')
+        .eq('user_id', user.id)
+        .gte('log_date', caveatWindowStart(today))
+        .order('log_date', { ascending: true }),
     ])
 
     setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
+
+    const caveatRows = (caveatRes.data ?? []) as { log_date: string }[]
+    setCaveatLog(caveatRows.map(r => r.log_date))
 
     const loadedItems = (itemsRes.data ?? []) as Item[]
     setItems(loadedItems)
@@ -408,19 +439,71 @@ export function useChallenge() {
     [user],
   )
 
+  const caveatStatus = useMemo((): CaveatStatus => {
+    const windowStart = caveatWindowStart(today)
+    const inWindow = caveatLog.filter(d => d >= windowStart).sort()
+    const used = inWindow.length
+    const remaining = Math.max(0, MAX_CAVEATS_PER_WINDOW - used)
+    return {
+      used,
+      remaining,
+      canAdd: remaining > 0,
+      max: MAX_CAVEATS_PER_WINDOW,
+      windowDays: CAVEAT_WINDOW_DAYS,
+      // A slot frees up CAVEAT_WINDOW_DAYS after the oldest caveat in the window.
+      nextAvailable:
+        remaining > 0 || inWindow.length === 0
+          ? null
+          : addDaysToDateStr(inWindow[0], CAVEAT_WINDOW_DAYS),
+    }
+  }, [caveatLog, today])
+
   const updateItemCaveat = useCallback(
-    async (itemId: string, caveat: string | null) => {
-      if (!user) return
+    async (
+      itemId: string,
+      caveat: string | null,
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
       const trimmed = caveat?.trim() ?? ''
       const value = trimmed.length > 0 ? trimmed : null
+
+      const existing = items.find(i => i.id === itemId)
+      const hadCaveat = !!existing?.caveat && existing.caveat.trim().length > 0
+      // Only adding a brand-new caveat spends an allowance. Editing the text of
+      // an existing caveat, or removing one, is always free.
+      const isNewCaveat = value !== null && !hadCaveat
+
+      const windowStart = caveatWindowStart(today)
+      const inWindow = caveatLog.filter(d => d >= windowStart)
+
+      if (isNewCaveat && inWindow.length >= MAX_CAVEATS_PER_WINDOW) {
+        return {
+          ok: false,
+          error: `You can only add ${MAX_CAVEATS_PER_WINDOW} caveats every ${CAVEAT_WINDOW_DAYS} days.`,
+        }
+      }
+
+      if (isNewCaveat) {
+        // Record the allowance spend first so it syncs across devices. If this
+        // fails we abort rather than silently granting a free caveat.
+        const { error: eventError } = await supabase
+          .from('caveat_events')
+          .insert({ user_id: user.id, item_id: itemId, log_date: today })
+        if (eventError) {
+          return { ok: false, error: 'Could not save this caveat. Please try again.' }
+        }
+        setCaveatLog(prev => [...prev, today])
+      }
 
       await supabase.from('items').update({ caveat: value }).eq('id', itemId)
 
       setItems(prev =>
         prev.map(item => (item.id === itemId ? { ...item, caveat: value } : item)),
       )
+
+      return { ok: true }
     },
-    [user],
+    [user, items, caveatLog, today],
   )
 
   const reorderItems = useCallback(
@@ -645,6 +728,7 @@ export function useChallenge() {
     saveTopTwelve,
     updateItemText,
     updateItemCaveat,
+    caveatStatus,
     reorderItems,
     saveJournal,
     getJournalEntries,

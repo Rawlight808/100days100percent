@@ -152,6 +152,7 @@ export function SelectPage() {
     saveTopTwelve,
     updateItemText,
     updateItemCaveat,
+    caveatStatus,
     reorderItems,
   } = useChallenge()
   const navigate = useNavigate()
@@ -317,6 +318,9 @@ export function SelectPage() {
           <CaveatModal
             itemText={target.text}
             initialCaveat={target.caveat ?? ''}
+            remaining={caveatStatus.remaining}
+            max={caveatStatus.max}
+            windowDays={caveatStatus.windowDays}
             onSave={caveat => updateItemCaveat(target.id, caveat)}
             onRemove={() => updateItemCaveat(target.id, null)}
             onClose={() => setCaveatItemId(null)}
