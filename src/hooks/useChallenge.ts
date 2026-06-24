@@ -37,9 +37,13 @@ export interface DailyLog {
 /** Days of perfect completion required before the sabbath unlocks. */
 export const SABBATH_UNLOCK_DAY = 3
 
-/** A caveat is a spent exception. You only get a few per rolling window. */
-export const MAX_CAVEATS_PER_WINDOW = 2
-/** Rolling window (in days) the caveat allowance is measured over. No rollover. */
+/** A caveat is a spent exception: one per rolling window, no rollover. */
+export const MAX_CAVEATS_PER_WINDOW = 1
+/**
+ * Rolling window (in days) the caveat allowance is measured over, and how long
+ * a caveat stays active. After the window is up, the caveat auto-deactivates
+ * and a fresh allowance opens.
+ */
 export const CAVEAT_WINDOW_DAYS = 7
 
 export interface CaveatStatus {
@@ -217,18 +221,45 @@ export function useChallenge() {
         .maybeSingle(),
       supabase
         .from('caveat_events')
-        .select('log_date')
+        .select('log_date, item_id')
         .eq('user_id', user.id)
-        .gte('log_date', caveatWindowStart(today))
-        .order('log_date', { ascending: true }),
+        .order('log_date', { ascending: false }),
     ])
 
     setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
 
-    const caveatRows = (caveatRes.data ?? []) as { log_date: string }[]
-    setCaveatLog(caveatRows.map(r => r.log_date))
+    const windowStart = caveatWindowStart(today)
+    const caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
 
-    const loadedItems = (itemsRes.data ?? []) as Item[]
+    // Allowance is spent by adds within the rolling window (no rollover).
+    setCaveatLog(caveatRows.filter(r => r.log_date >= windowStart).map(r => r.log_date))
+
+    let loadedItems = (itemsRes.data ?? []) as Item[]
+
+    // Auto-deactivate any caveat whose week is up. Rows are ordered newest-first,
+    // so the first event seen per item is its most recent add.
+    const latestAddByItem = new Map<string, string>()
+    for (const r of caveatRows) {
+      if (r.item_id && !latestAddByItem.has(r.item_id)) {
+        latestAddByItem.set(r.item_id, r.log_date)
+      }
+    }
+    const expiredItemIds = loadedItems
+      .filter(i => !!i.caveat && i.caveat.trim().length > 0)
+      .filter(i => {
+        const addedOn = latestAddByItem.get(i.id)
+        return addedOn != null && addedOn < windowStart
+      })
+      .map(i => i.id)
+
+    if (expiredItemIds.length > 0) {
+      await supabase.from('items').update({ caveat: null }).in('id', expiredItemIds)
+      const expired = new Set(expiredItemIds)
+      loadedItems = loadedItems.map(i =>
+        expired.has(i.id) ? { ...i, caveat: null } : i,
+      )
+    }
+
     setItems(loadedItems)
 
     const log = logRes.data as DailyLog | null
@@ -477,9 +508,10 @@ export function useChallenge() {
       const inWindow = caveatLog.filter(d => d >= windowStart)
 
       if (isNewCaveat && inWindow.length >= MAX_CAVEATS_PER_WINDOW) {
+        const noun = MAX_CAVEATS_PER_WINDOW === 1 ? 'caveat' : 'caveats'
         return {
           ok: false,
-          error: `You can only add ${MAX_CAVEATS_PER_WINDOW} caveats every ${CAVEAT_WINDOW_DAYS} days.`,
+          error: `You can only use ${MAX_CAVEATS_PER_WINDOW} ${noun} every ${CAVEAT_WINDOW_DAYS} days. It deactivates automatically once the week is up.`,
         }
       }
 

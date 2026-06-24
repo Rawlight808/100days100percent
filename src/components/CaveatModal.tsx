@@ -104,8 +104,8 @@ export function CaveatModal({
         {isNew && remaining != null && (
           <p className="caveat-modal__allowance">
             {outOfAllowance
-              ? `No caveats left — you can only add ${max ?? remaining} every ${windowDays ?? 7} days.`
-              : `${remaining} caveat${remaining === 1 ? '' : 's'} left in the next ${windowDays ?? 7} days.`}
+              ? `No caveats left — you get ${max ?? remaining} every ${windowDays ?? 7} days.`
+              : `${remaining} caveat${remaining === 1 ? '' : 's'} left for the next ${windowDays ?? 7} days. It deactivates automatically once the week is up.`}
           </p>
         )}
 
