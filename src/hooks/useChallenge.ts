@@ -57,36 +57,13 @@ export interface Streak {
   current_day: number
   streak_start_date: string | null
   last_perfect_date: string | null
+  /** Day number the streak broke on; drives the "failed" screen. Null when intact. */
+  failed_day?: number | null
+  /** Challenge-day the user manually jumped to via "Start Day N+1". Null = natural day. */
+  advanced_to?: string | null
 }
 
 export type Phase = 'loading' | 'setup' | 'select' | 'ready' | 'failed'
-
-function advancedStorageKey(userId: string): string {
-  return `hundred-days:advanced-to:${userId}`
-}
-
-function failedStorageKey(userId: string): string {
-  return `hundred-days:failed:${userId}`
-}
-
-function loadFailedDay(userId: string): number | null {
-  try {
-    const raw = localStorage.getItem(failedStorageKey(userId))
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as { failedDay?: number }
-    return typeof parsed.failedDay === 'number' ? parsed.failedDay : null
-  } catch {
-    return null
-  }
-}
-
-function saveFailedDay(userId: string, failedDay: number) {
-  localStorage.setItem(failedStorageKey(userId), JSON.stringify({ failedDay }))
-}
-
-function clearFailedDay(userId: string) {
-  localStorage.removeItem(failedStorageKey(userId))
-}
 
 /**
  * Start of the caveat week (the Sunday on/before `today`), as a challenge-day
@@ -130,21 +107,16 @@ export function useChallenge() {
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
 
-  const [advancedTo, setAdvancedTo] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    return null
-  })
+  const [advancedTo, setAdvancedTo] = useState<string | null>(null)
 
+  // Challenge state (failed day, manual day advance, caveat log) is hydrated
+  // from the DB in loadData. Here we only reset it when the user signs out.
   useEffect(() => {
     if (!user) {
       setAdvancedTo(null)
       setFailedDay(null)
       setCaveatLog([])
-      return
     }
-    const stored = window.localStorage.getItem(advancedStorageKey(user.id))
-    setAdvancedTo(stored)
-    setFailedDay(loadFailedDay(user.id))
   }, [user])
 
   const today = useMemo(() => {
@@ -292,17 +264,22 @@ export function useChallenge() {
 
     if (s && activeChallenge && isStreakBroken(s, today, yesterday, activeChallenge)) {
       const day = computeFailedDay(s, yesterday)
-      saveFailedDay(user.id, day)
       setFailedDay(day)
-    } else if (user) {
-      const storedFailed = loadFailedDay(user.id)
-      if (storedFailed != null && s && activeChallenge && isStreakBroken(s, today, yesterday, activeChallenge)) {
-        setFailedDay(storedFailed)
-      } else if (storedFailed != null && s && !isStreakBroken(s, today, yesterday, activeChallenge)) {
-        clearFailedDay(user.id)
-        setFailedDay(null)
+      if (s.failed_day !== day) {
+        await supabase.from('streaks').update({ failed_day: day }).eq('user_id', user.id)
+        s = { ...s, failed_day: day }
+      }
+    } else {
+      setFailedDay(null)
+      if (s && s.failed_day != null) {
+        await supabase.from('streaks').update({ failed_day: null }).eq('user_id', user.id)
+        s = { ...s, failed_day: null }
       }
     }
+
+    // Hydrate the manual day-advance from the DB. Changing it recomputes
+    // `today`, which re-runs loadData once for the advanced day (then settles).
+    setAdvancedTo(s?.advanced_to ?? null)
 
     setStreak(s)
     streakRef.current = s
@@ -352,10 +329,14 @@ export function useChallenge() {
           current_day: 0,
           last_perfect_date: null,
           streak_start_date: today,
+          failed_day: null,
+          advanced_to: null,
           updated_at: new Date().toISOString(),
         })
         .eq('user_id', user.id)
 
+      setAdvancedTo(null)
+      setFailedDay(null)
       setSabbathThisWeek(null)
     },
     [user, today],
@@ -575,12 +556,12 @@ export function useChallenge() {
         current_day: 0,
         last_perfect_date: null,
         streak_start_date: today,
+        failed_day: null,
+        advanced_to: null,
         updated_at: new Date().toISOString(),
       })
       .eq('user_id', user.id)
 
-    window.localStorage.removeItem(advancedStorageKey(user.id))
-    clearFailedDay(user.id)
     setAdvancedTo(null)
     setFailedDay(null)
     setSabbathThisWeek(null)
@@ -592,11 +573,14 @@ export function useChallenge() {
     await resetToSelect()
   }, [resetToSelect])
 
-  const advanceDay = useCallback(() => {
+  const advanceDay = useCallback(async () => {
     if (!user) return
     const next = addDaysToDateStr(today, 1)
-    window.localStorage.setItem(advancedStorageKey(user.id), next)
     setAdvancedTo(next)
+    await supabase
+      .from('streaks')
+      .update({ advanced_to: next, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
   }, [user, today])
 
   const sabbathStatus = useMemo(() => {
@@ -720,7 +704,6 @@ export function useChallenge() {
         .eq('id', log.id)
 
       if (allDone) {
-        clearFailedDay(user.id)
         setFailedDay(null)
       }
 
@@ -734,6 +717,7 @@ export function useChallenge() {
             current_day: newDay,
             last_perfect_date: today,
             streak_start_date: s.last_perfect_date === yesterday ? s.streak_start_date : today,
+            failed_day: null,
             updated_at: new Date().toISOString(),
           })
           .eq('user_id', user.id)
@@ -745,6 +729,10 @@ export function useChallenge() {
           streakRef.current = updated as Streak
         }
         setJustCompleted(true)
+      } else if (allDone) {
+        // Already perfect today (e.g. re-check after uncheck): just make sure
+        // any lingering failed flag is cleared in the DB.
+        await supabase.from('streaks').update({ failed_day: null }).eq('user_id', user.id)
       }
 
       return isChecking
