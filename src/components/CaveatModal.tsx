@@ -9,12 +9,10 @@ interface CaveatModalProps {
   onSave: (caveat: string) => void | Promise<void> | SaveResult | Promise<SaveResult>
   onRemove?: () => void | Promise<void> | SaveResult | Promise<SaveResult>
   onClose: () => void
-  /** How many new caveats remain in the current rolling window. */
+  /** How many new caveats remain this week. */
   remaining?: number
-  /** Total caveats allowed per window (for messaging). */
+  /** Total caveats allowed per week (for messaging). */
   max?: number
-  /** Length of the rolling window in days (for messaging). */
-  windowDays?: number
 }
 
 const MAX_LENGTH = 280
@@ -27,7 +25,6 @@ export function CaveatModal({
   onClose,
   remaining,
   max,
-  windowDays,
 }: CaveatModalProps) {
   const [value, setValue] = useState(initialCaveat)
   const [saving, setSaving] = useState(false)
@@ -104,8 +101,8 @@ export function CaveatModal({
         {isNew && remaining != null && (
           <p className="caveat-modal__allowance">
             {outOfAllowance
-              ? `No caveats left — you get ${max ?? remaining} every ${windowDays ?? 7} days.`
-              : `${remaining} caveat${remaining === 1 ? '' : 's'} left for the next ${windowDays ?? 7} days. It deactivates automatically once the week is up.`}
+              ? `No caveats left this week — you get ${max ?? remaining} per week. Resets Sunday.`
+              : `${remaining} caveat${remaining === 1 ? '' : 's'} left this week. It deactivates automatically when the week is over (resets Sunday).`}
           </p>
         )}
 

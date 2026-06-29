@@ -360,7 +360,6 @@ export function DashboardPage() {
             initialCaveat={target.caveat ?? ''}
             remaining={caveatStatus.remaining}
             max={caveatStatus.max}
-            windowDays={caveatStatus.windowDays}
             onSave={caveat => updateItemCaveat(target.id, caveat)}
             onRemove={() => updateItemCaveat(target.id, null)}
             onClose={() => setCaveatItemId(null)}

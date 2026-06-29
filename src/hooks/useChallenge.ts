@@ -37,13 +37,9 @@ export interface DailyLog {
 /** Days of perfect completion required before the sabbath unlocks. */
 export const SABBATH_UNLOCK_DAY = 3
 
-/** A caveat is a spent exception: one per rolling window, no rollover. */
+/** A caveat is a spent exception: one per calendar week, no rollover. */
 export const MAX_CAVEATS_PER_WINDOW = 1
-/**
- * Rolling window (in days) the caveat allowance is measured over, and how long
- * a caveat stays active. After the window is up, the caveat auto-deactivates
- * and a fresh allowance opens.
- */
+/** Days in the caveat week (used to compute when the next week begins). */
 export const CAVEAT_WINDOW_DAYS = 7
 
 export interface CaveatStatus {
@@ -92,9 +88,13 @@ function clearFailedDay(userId: string) {
   localStorage.removeItem(failedStorageKey(userId))
 }
 
-/** Start of the rolling caveat window (inclusive), as a challenge-day string. */
+/**
+ * Start of the caveat week (the Sunday on/before `today`), as a challenge-day
+ * string. A caveat counts toward the allowance — and stays active — only while
+ * it was added on or after this date. It auto-deactivates once the week rolls.
+ */
 function caveatWindowStart(today: string): string {
-  return addDaysToDateStr(today, -(CAVEAT_WINDOW_DAYS - 1))
+  return weekStartStr(today)
 }
 
 function computeFailedDay(streak: Streak, yesterday: string): number {
@@ -472,7 +472,7 @@ export function useChallenge() {
 
   const caveatStatus = useMemo((): CaveatStatus => {
     const windowStart = caveatWindowStart(today)
-    const inWindow = caveatLog.filter(d => d >= windowStart).sort()
+    const inWindow = caveatLog.filter(d => d >= windowStart)
     const used = inWindow.length
     const remaining = Math.max(0, MAX_CAVEATS_PER_WINDOW - used)
     return {
@@ -481,11 +481,9 @@ export function useChallenge() {
       canAdd: remaining > 0,
       max: MAX_CAVEATS_PER_WINDOW,
       windowDays: CAVEAT_WINDOW_DAYS,
-      // A slot frees up CAVEAT_WINDOW_DAYS after the oldest caveat in the window.
+      // The allowance refreshes (and any active caveat deactivates) next Sunday.
       nextAvailable:
-        remaining > 0 || inWindow.length === 0
-          ? null
-          : addDaysToDateStr(inWindow[0], CAVEAT_WINDOW_DAYS),
+        remaining > 0 ? null : addDaysToDateStr(windowStart, CAVEAT_WINDOW_DAYS),
     }
   }, [caveatLog, today])
 
@@ -511,7 +509,7 @@ export function useChallenge() {
         const noun = MAX_CAVEATS_PER_WINDOW === 1 ? 'caveat' : 'caveats'
         return {
           ok: false,
-          error: `You can only use ${MAX_CAVEATS_PER_WINDOW} ${noun} every ${CAVEAT_WINDOW_DAYS} days. It deactivates automatically once the week is up.`,
+          error: `You can only use ${MAX_CAVEATS_PER_WINDOW} ${noun} per week. It deactivates automatically when the week is over (resets Sunday).`,
         }
       }
 
