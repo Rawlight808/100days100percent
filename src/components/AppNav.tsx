@@ -15,7 +15,7 @@ export function AppNav({
   startOverLabel = 'Reset & Choose Again',
   startOverDesc = "Re-pick your daily habits from your 100 list. Your streak and today's progress will be reset.",
 }: AppNavProps) {
-  const { signOut } = useAuth()
+  const { signOut, deleteAccount } = useAuth()
   const {
     settings: reminder,
     permission: notifPerm,
@@ -26,7 +26,20 @@ export function AppNav({
   const [menuOpen, setMenuOpen] = useState(false)
   const [reminderHour, setReminderHour] = useState(reminder.hour)
   const [reminderMinute, setReminderMinute] = useState(reminder.minute)
+  const [deleteStage, setDeleteStage] = useState<'idle' | 'confirm' | 'deleting'>('idle')
+  const [deleteError, setDeleteError] = useState<string | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
+
+  const handleDelete = async () => {
+    setDeleteError(null)
+    setDeleteStage('deleting')
+    const err = await deleteAccount()
+    if (err) {
+      setDeleteError(err)
+      setDeleteStage('confirm')
+    }
+    // On success the auth state change redirects to the sign-in screen.
+  }
 
   useEffect(() => {
     if (!menuOpen) return
@@ -159,6 +172,61 @@ export function AppNav({
                 </button>
               </div>
             )}
+
+            <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Delete Account</h3>
+              {deleteStage === 'idle' ? (
+                <>
+                  <p className="app-nav__muted">
+                    Permanently delete your account and all of your data. This
+                    cannot be undone.
+                  </p>
+                  <button
+                    className="app-nav__delete-btn"
+                    type="button"
+                    onClick={() => {
+                      setDeleteError(null)
+                      setDeleteStage('confirm')
+                    }}
+                  >
+                    Delete Account
+                  </button>
+                </>
+              ) : (
+                <>
+                  <p className="app-nav__muted">
+                    This erases your 100 items, daily logs, streak, and journal
+                    entries — permanently. Are you sure?
+                  </p>
+                  {deleteError && (
+                    <p className="app-nav__delete-error">{deleteError}</p>
+                  )}
+                  <div className="app-nav__delete-actions">
+                    <button
+                      className="app-nav__delete-btn"
+                      type="button"
+                      disabled={deleteStage === 'deleting'}
+                      onClick={handleDelete}
+                    >
+                      {deleteStage === 'deleting'
+                        ? 'Deleting…'
+                        : 'Yes, delete everything'}
+                    </button>
+                    <button
+                      className="app-nav__reminder-btn"
+                      type="button"
+                      disabled={deleteStage === 'deleting'}
+                      onClick={() => {
+                        setDeleteStage('idle')
+                        setDeleteError(null)
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         )}
       </div>

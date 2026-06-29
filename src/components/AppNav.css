@@ -158,6 +158,42 @@
   background: rgba(239, 68, 68, 0.2);
 }
 
+.app-nav__delete-btn {
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  border-radius: 8px;
+  padding: 0.45rem 1rem;
+  font-size: 0.85rem;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  transition: background 0.2s ease;
+  align-self: flex-start;
+}
+
+.app-nav__delete-btn:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.32);
+}
+
+.app-nav__delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.app-nav__delete-actions {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.app-nav__delete-error {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #f87171;
+}
+
 @media (max-width: 640px) {
   .app-nav__menu {
     width: calc(100vw - 2rem);

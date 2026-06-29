@@ -21,6 +21,12 @@ body {
 #root {
   width: 100%;
   min-height: 100vh;
+  min-height: 100dvh;
+  /* Keep content clear of the notch / Dynamic Island / home indicator on
+     modern phones. box-sizing: border-box (set globally) keeps this inside
+     the viewport so it never introduces overflow scroll. */
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -33,11 +39,61 @@ p {
 
 .page-loading {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.35);
   font-size: 1rem;
+}
+
+.page-error {
+  min-height: 80vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.page-error__card {
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+  background: #15110a;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 14px;
+  padding: 1.8rem 1.5rem;
+}
+
+.page-error__title {
+  margin: 0 0 0.55rem;
+  font-size: 1.2rem;
+  color: #f59e0b;
+}
+
+.page-error__text {
+  margin: 0 0 1.3rem;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.page-error__btn {
+  padding: 0.65rem 1.5rem;
+  border-radius: 8px;
+  border: none;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #000;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.page-error__btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(245, 158, 11, 0.3);
 }
 
 .page-loading__spinner {

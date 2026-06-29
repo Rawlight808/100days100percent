@@ -49,6 +49,7 @@ function createMaster(src: string): HTMLAudioElement {
 
 export function useCompletionSound() {
   const masters = useRef<Map<string, HTMLAudioElement>>(new Map())
+  const unlocked = useRef(false)
 
   useEffect(() => {
     for (const file of SOUND_FILES) {
@@ -56,6 +57,41 @@ export function useCompletionSound() {
       if (!masters.current.has(url)) {
         masters.current.set(url, createMaster(url))
       }
+    }
+  }, [])
+
+  // iOS Safari blocks audio until it has played once inside a user gesture.
+  // Prime every master (muted) on the first interaction so later programmatic
+  // plays — including the finale on the last checkbox — are reliably audible.
+  useEffect(() => {
+    const unlock = () => {
+      if (unlocked.current) return
+      unlocked.current = true
+      for (const master of masters.current.values()) {
+        master.muted = true
+        const p = master.play()
+        if (p && typeof p.then === 'function') {
+          p.then(() => {
+            master.pause()
+            master.currentTime = 0
+            master.muted = false
+          }).catch(() => {
+            master.muted = false
+          })
+        }
+      }
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('touchstart', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('touchstart', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('touchstart', unlock)
+      window.removeEventListener('keydown', unlock)
     }
   }, [])
 

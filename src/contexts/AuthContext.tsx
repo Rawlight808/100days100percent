@@ -13,6 +13,23 @@ interface AuthState {
   ) => Promise<{ error: string | null; requiresEmailVerification: boolean }>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
+  deleteAccount: () => Promise<string | null>
+}
+
+/** Remove any app state cached in localStorage (per-user keys + reminder). */
+function clearLocalAppState() {
+  try {
+    const keys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i)
+      if (k && (k.startsWith('hundred-days') || k === 'hundred-days-reminder')) {
+        keys.push(k)
+      }
+    }
+    keys.forEach(k => localStorage.removeItem(k))
+  } catch {
+    // Ignore storage access errors (private mode, etc.)
+  }
 }
 
 const AuthContext = createContext<AuthState | null>(null)
@@ -63,11 +80,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signOut = useCallback(async () => {
+    clearLocalAppState()
     await supabase.auth.signOut()
   }, [])
 
+  const deleteAccount = useCallback(async () => {
+    const { error } = await supabase.rpc('delete_own_account')
+    if (error) return error.message
+    clearLocalAppState()
+    // The user row (and session) is gone; sign out locally to clear tokens and
+    // trigger the redirect to the auth screen.
+    await supabase.auth.signOut()
+    return null
+  }, [])
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider
+      value={{ user, session, loading, signUp, signIn, signOut, deleteAccount }}
+    >
       {children}
     </AuthContext.Provider>
   )

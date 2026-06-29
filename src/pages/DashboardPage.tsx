@@ -22,6 +22,8 @@ export function DashboardPage() {
     displayDay,
     phase,
     loading,
+    loadError,
+    reload,
     completedIds,
     justCompleted,
     setJustCompleted,
@@ -161,6 +163,26 @@ export function DashboardPage() {
 
   if (loading) {
     return <div className="page-loading">Loading…</div>
+  }
+
+  if (loadError) {
+    return (
+      <div className="page-error">
+        <div className="page-error__card">
+          <h1 className="page-error__title">Can't reach the server</h1>
+          <p className="page-error__text">
+            Check your connection and try again. Your progress is safe.
+          </p>
+          <button
+            type="button"
+            className="page-error__btn"
+            onClick={() => void reload()}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
   }
 
   if (phase === 'setup') return <Navigate to="/setup" replace />

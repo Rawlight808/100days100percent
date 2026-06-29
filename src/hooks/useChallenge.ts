@@ -121,6 +121,7 @@ export function useChallenge() {
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [streak, setStreak] = useState<Streak | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [justCompleted, setJustCompleted] = useState(false)
   const [sabbathThisWeek, setSabbathThisWeek] = useState<string | null>(null)
   const [failedDay, setFailedDay] = useState<number | null>(null)
@@ -197,6 +198,7 @@ export function useChallenge() {
   const loadData = useCallback(async () => {
     if (!user) return
     setLoading(true)
+    setLoadError(false)
 
     const weekStart = weekStartStr(today)
 
@@ -225,6 +227,15 @@ export function useChallenge() {
         .eq('user_id', user.id)
         .order('log_date', { ascending: false }),
     ])
+
+    // The items + streak reads are essential. If either failed (e.g. offline or
+    // a transient network error), surface a retryable error rather than wiping
+    // state to empty and bouncing the user through setup/select.
+    if (itemsRes.error || streakRes.error) {
+      setLoadError(true)
+      setLoading(false)
+      return
+    }
 
     setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
 
@@ -750,6 +761,7 @@ export function useChallenge() {
     displayDay,
     phase,
     loading,
+    loadError,
     completedIds,
     justCompleted,
     setJustCompleted,
