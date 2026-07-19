@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge, REQUIRED_ITEMS } from '../hooks/useChallenge'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/auth-context'
 import './SetupPage.css'
 
 function getDraftStorageKey(userId: string) {
@@ -21,12 +21,15 @@ export function SetupPage() {
   useEffect(() => {
     if (loading || didHydrateDraft.current) return
 
+    // One-time hydration of the editor from saved items or a local draft.
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (items.length > 0) {
       setText(items.map(i => i.text).join('\n'))
     } else if (draftStorageKey) {
       const savedDraft = window.localStorage.getItem(draftStorageKey)
       if (savedDraft) setText(savedDraft)
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     didHydrateDraft.current = true
   }, [draftStorageKey, items, loading])

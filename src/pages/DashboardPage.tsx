@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/auth-context'
 import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
 import { useDeadlineNotifications } from '../hooks/useDeadlineNotifications'
@@ -8,6 +8,7 @@ import { getDailyMessage } from '../data/dailyMessages'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import { CaveatModal } from '../components/CaveatModal'
+import { ExceptionModal } from '../components/ExceptionModal'
 import { JournalCalendar } from '../components/JournalCalendar'
 import { JournalEntryModal } from '../components/JournalEntryModal'
 import { AppNav } from '../components/AppNav'
@@ -36,6 +37,8 @@ export function DashboardPage() {
     updateItemText,
     updateItemCaveat,
     caveatStatus,
+    exceptionStatus,
+    claimException,
     sabbathStatus,
     takeSabbath,
   } = useChallenge()
@@ -56,6 +59,7 @@ export function DashboardPage() {
   const [editText, setEditText] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
+  const [exceptionOpen, setExceptionOpen] = useState(false)
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({})
   const [viewingDate, setViewingDate] = useState<string | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -72,6 +76,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (todayLog?.journal_entry && todayLog.journal_entry.trim().length > 0) {
+      // Merge today's saved entry into the calendar map fetched separately.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJournalEntries(prev => ({ ...prev, [today]: todayLog.journal_entry as string }))
     }
   }, [todayLog, today])
@@ -87,6 +93,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (todayLog?.journal_entry != null) {
+      // Hydrate the editable textarea from the fetched log.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setJournal(todayLog.journal_entry)
     }
   }, [todayLog])
@@ -99,6 +107,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (justCompleted) {
+      // Fire-and-reset celebration side effect (sound + timed banner).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCelebrate(true)
       playAllComplete()
       const timer = setTimeout(() => {
@@ -249,6 +259,20 @@ export function DashboardPage() {
         <p className="dashboard__sabbath-tag">Today was your sabbath.</p>
       )}
 
+      {!displayDay.completedToday && exceptionStatus.canUseToday && (
+        <p className="dashboard__exception-hint">
+          Sick, traveling all day, or in an emergency?{' '}
+          <button
+            type="button"
+            className="dashboard__exception-link"
+            onClick={() => setExceptionOpen(true)}
+          >
+            Use an Exception
+          </button>{' '}
+          ({exceptionStatus.remaining} left this run)
+        </p>
+      )}
+
       {editError && (
         <p className="dashboard__edit-error">{editError}</p>
       )}
@@ -302,14 +326,18 @@ export function DashboardPage() {
       {displayDay.completedToday && (
         <div className="dashboard__complete-msg">
           <div className="dashboard__complete-title">
-            {displayDay.day >= REQUIRED_DAYS
-              ? 'You did it. 100 days of 100%.'
-              : `Day ${displayDay.day} — Complete`}
+            {todayLog?.is_exception
+              ? 'Exception day — streak frozen'
+              : displayDay.day >= REQUIRED_DAYS
+                ? 'You did it. 100 days of 100%.'
+                : `Day ${displayDay.day} — Complete`}
           </div>
           <div className="dashboard__complete-text">
-            {displayDay.day >= REQUIRED_DAYS
-              ? 'Incredible. You committed and followed through. This is who you are now.'
-              : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
+            {todayLog?.is_exception
+              ? `Today doesn't count toward your 100, but your streak survives. Day ${displayDay.day + 1} resumes tomorrow. Take care of what matters.`
+              : displayDay.day >= REQUIRED_DAYS
+                ? 'Incredible. You committed and followed through. This is who you are now.'
+                : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
           </div>
           {displayDay.day < REQUIRED_DAYS && (
             <>
@@ -388,6 +416,16 @@ export function DashboardPage() {
           />
         )
       })()}
+
+      {exceptionOpen && (
+        <ExceptionModal
+          target="today"
+          remaining={exceptionStatus.remaining}
+          max={exceptionStatus.max}
+          onConfirm={(category, note) => claimException('today', category, note)}
+          onClose={() => setExceptionOpen(false)}
+        />
+      )}
 
       {calendarOpen && (
         <div

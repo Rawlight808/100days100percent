@@ -1,0 +1,198 @@
+.exception-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1.5rem;
+  animation: exception-fade-in 0.15s ease-out;
+}
+
+.exception-modal {
+  width: 100%;
+  max-width: 440px;
+  background: #0a1215;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  border-radius: 14px;
+  padding: 1.4rem 1.4rem 1.1rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  animation: exception-pop-in 0.18s ease-out;
+}
+
+.exception-modal__header {
+  margin-bottom: 0.9rem;
+}
+
+.exception-modal__label {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #2dd4bf;
+}
+
+.exception-modal__title {
+  margin: 0 0 0.4rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.exception-modal__explain {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.exception-modal__section-label {
+  margin: 0 0 0.45rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.exception-modal__categories {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.exception-modal__chip {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  transition: all 0.15s ease;
+}
+
+.exception-modal__chip:hover {
+  border-color: rgba(45, 212, 191, 0.4);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.exception-modal__chip--active {
+  background: rgba(45, 212, 191, 0.14);
+  border-color: rgba(45, 212, 191, 0.65);
+  color: #2dd4bf;
+}
+
+.exception-modal__textarea {
+  width: 100%;
+  min-height: 80px;
+  resize: vertical;
+  padding: 0.7rem 0.85rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  box-sizing: border-box;
+}
+
+.exception-modal__textarea:focus {
+  border-color: rgba(45, 212, 191, 0.6);
+  box-shadow: 0 0 0 2px rgba(45, 212, 191, 0.15);
+}
+
+.exception-modal__textarea::placeholder {
+  color: rgba(255, 255, 255, 0.28);
+}
+
+.exception-modal__allowance {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgba(45, 212, 191, 0.85);
+}
+
+.exception-modal__error {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: #f87171;
+}
+
+.exception-modal__actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 1rem;
+  gap: 0.5rem;
+}
+
+.exception-modal__btn {
+  padding: 0.55rem 1rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.exception-modal__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.exception-modal__btn--confirm {
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  color: #000;
+}
+
+.exception-modal__btn--confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(45, 212, 191, 0.3);
+}
+
+.exception-modal__btn--cancel {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.exception-modal__btn--cancel:hover:not(:disabled) {
+  color: rgba(255, 255, 255, 0.9);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+@keyframes exception-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes exception-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (max-width: 480px) {
+  .exception-modal {
+    padding: 1.15rem 1.1rem 1rem;
+    border-radius: 12px;
+  }
+}

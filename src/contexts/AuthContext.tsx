@@ -1,20 +1,8 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
-
-interface AuthState {
-  user: User | null
-  session: Session | null
-  loading: boolean
-  signUp: (
-    email: string,
-    password: string,
-  ) => Promise<{ error: string | null; requiresEmailVerification: boolean }>
-  signIn: (email: string, password: string) => Promise<string | null>
-  signOut: () => Promise<void>
-  deleteAccount: () => Promise<string | null>
-}
+import { AuthContext } from './auth-context'
 
 /** Remove any app state cached in localStorage (per-user keys + reminder). */
 function clearLocalAppState() {
@@ -31,8 +19,6 @@ function clearLocalAppState() {
     // Ignore storage access errors (private mode, etc.)
   }
 }
-
-const AuthContext = createContext<AuthState | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -53,7 +39,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(s?.user ?? null)
     })
 
-    return () => subscription.unsubscribe()
+    // Backgrounded tabs throttle timers, so the silent token refresh can lapse.
+    // Re-check the session whenever the tab regains focus or the network
+    // reconnects; getSession() transparently refreshes an expired token.
+    const recheckSession = () => {
+      if (document.visibilityState !== 'visible') return
+      supabase.auth.getSession().then(({ data: { session: s } }) => {
+        setSession(s)
+        setUser(s?.user ?? null)
+      })
+    }
+
+    document.addEventListener('visibilitychange', recheckSession)
+    window.addEventListener('online', recheckSession)
+
+    return () => {
+      subscription.unsubscribe()
+      document.removeEventListener('visibilitychange', recheckSession)
+      window.removeEventListener('online', recheckSession)
+    }
   }, [])
 
   const signUp = useCallback(async (email: string, password: string) => {
@@ -101,10 +105,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider')
-  return ctx
 }

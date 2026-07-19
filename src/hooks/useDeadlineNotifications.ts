@@ -31,7 +31,9 @@ export function useDeadlineNotifications(
   completedToday: boolean,
 ) {
   const completedRef = useRef(completedToday)
-  completedRef.current = completedToday
+  useEffect(() => {
+    completedRef.current = completedToday
+  }, [completedToday])
 
   const requestPermission = useCallback(async () => {
     if (typeof Notification === 'undefined') return 'denied' as const

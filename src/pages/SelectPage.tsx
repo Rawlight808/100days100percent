@@ -175,6 +175,8 @@ export function SelectPage() {
 
   useEffect(() => {
     const existing = items.filter(i => i.is_top_twelve).map(i => i.id)
+    // Seed the selection from any previously-saved daily habits once loaded.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (existing.length > 0) setSelectedIds(new Set(existing))
   }, [items])
 

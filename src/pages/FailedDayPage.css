@@ -79,3 +79,40 @@
   transform: translateY(-1px);
   box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
 }
+
+.failed__exception {
+  margin-top: 2.25rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.failed__exception-text {
+  margin: 0 0 0.85rem;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.failed__exception-btn {
+  padding: 0.7rem 1.3rem;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: #000;
+  background: linear-gradient(135deg, #2dd4bf, #0d9488);
+  border: none;
+  transition: all 0.15s ease;
+}
+
+.failed__exception-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(45, 212, 191, 0.3);
+}
+
+.failed__exception-hint {
+  margin: 0.7rem 0 0;
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.38);
+}

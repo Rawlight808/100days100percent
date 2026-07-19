@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/auth-context'
 import { useReminder } from '../hooks/useReminder'
+import { useCoachSharing } from '../hooks/useCoachSharing'
 import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
 import './AppNav.css'
 
@@ -22,6 +23,12 @@ export function AppNav({
     enable: enableReminder,
     disable: disableReminder,
   } = useReminder()
+  const {
+    shareWithCoach,
+    setSharing,
+    loading: sharingLoading,
+    saving: sharingSaving,
+  } = useCoachSharing()
 
   const [menuOpen, setMenuOpen] = useState(false)
   const [reminderHour, setReminderHour] = useState(reminder.hour)
@@ -71,7 +78,7 @@ export function AppNav({
                 <li>All items must be completed every day or you start over from Day 1.</li>
                 <li>
                   Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. Miss one day and
-                  your progress resets — no exceptions.
+                  your progress resets.
                 </li>
                 <li>You may change an item on your list after completing it three days in a row.</li>
                 <li>You may take one sabbath day per week after your first three perfect days.</li>
@@ -86,6 +93,19 @@ export function AppNav({
                 <li>You do not have to fulfill the tasks on your list.</li>
                 <li>You still cannot do the banned items on your list.</li>
                 <li>The day counts toward your 100 and advances your streak.</li>
+              </ul>
+            </div>
+
+            <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Exceptions</h3>
+              <ul className="app-nav__rules-list">
+                <li>
+                  For circumstances truly outside your control: sickness, family
+                  emergency, extreme work day, all-day travel.
+                </li>
+                <li>Freezes your streak — the day does not count toward your 100, but you do not reset.</li>
+                <li>5 per run. Claim one for today, or rescue yesterday from the failed screen.</li>
+                <li>Requires a reason. Be honest — this is your challenge.</li>
               </ul>
             </div>
 
@@ -154,6 +174,27 @@ export function AppNav({
                   </button>
                 </div>
               )}
+            </div>
+
+            <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Coach</h3>
+              <p className="app-nav__muted">
+                {shareWithCoach
+                  ? 'Your selected habit list is visible to the coach. Your journal is never shared.'
+                  : 'Your habit list is private. Share it so the coach can see what you’re working on. Your journal is never shared.'}
+              </p>
+              <button
+                className="app-nav__reminder-btn"
+                type="button"
+                disabled={sharingLoading || sharingSaving}
+                onClick={() => setSharing(!shareWithCoach)}
+              >
+                {sharingSaving
+                  ? 'Saving…'
+                  : shareWithCoach
+                    ? 'Make Private'
+                    : 'Share With Coach'}
+              </button>
             </div>
 
             {onStartOver && (

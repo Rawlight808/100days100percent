@@ -21,10 +21,20 @@ on Vercel.
 - **Caveats** — attach a temporary exception to a rule. One per calendar week
   (resets Sunday); it deactivates automatically when the week is over. Synced
   across devices.
-- **Daily journal** with a browsable calendar of past entries.
+- **Exceptions** — a rare, whole-day exemption for circumstances outside your
+  control (sickness, family emergency, extreme work day, all-day travel).
+  Freezes the streak: the day doesn't count toward the 100, but you don't
+  reset. 5 per run; claimable for today, or retroactively for yesterday from
+  the failed screen. Requires a category + note.
+- **Daily journal** with a browsable calendar of past entries. Journal
+  history now survives restarts.
 - **Editing** a habit is allowed only after completing it 3 days in a row.
 - **Deadline reminders** and a configurable daily reminder (browser
   notifications).
+- **Coach sharing** — opt in to share your selected habit list with the coach
+  (admin), or keep it private (the default). Journals are never shared.
+- **Admin panel** — the coach can see all users and the day they're on, view
+  shared habit lists, and override a user's challenge day.
 - **Account deletion** — permanently remove your account and all data in-app.
 
 ## Tech stack

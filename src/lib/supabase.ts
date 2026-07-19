@@ -9,7 +9,14 @@ if (!url || !key) {
   )
 }
 
-export const supabase = createClient(url, key)
+export const supabase = createClient(url, key, {
+  auth: {
+    // Keep users signed in across reloads, tabs, and restarts.
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+})
 
 /** Email allowlisted for the in-app admin page and admin RPC functions. */
 export const ADMIN_EMAIL = 'rawlight@gmail.com'

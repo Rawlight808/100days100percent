@@ -1,11 +1,21 @@
+import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge } from '../hooks/useChallenge'
+import { ExceptionModal } from '../components/ExceptionModal'
 import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
 import './FailedDayPage.css'
 
 export function FailedDayPage() {
-  const { phase, loading, failedDay, restartFromFailure } = useChallenge()
+  const {
+    phase,
+    loading,
+    failedDay,
+    restartFromFailure,
+    exceptionStatus,
+    claimException,
+  } = useChallenge()
   const navigate = useNavigate()
+  const [exceptionOpen, setExceptionOpen] = useState(false)
 
   if (loading) {
     return <div className="page-loading">Loading…</div>
@@ -35,7 +45,42 @@ export function FailedDayPage() {
         <button className="failed__restart" type="button" onClick={handleRestart}>
           Restart — Choose Habits
         </button>
+
+        {exceptionStatus.canRescueYesterday && (
+          <div className="failed__exception">
+            <p className="failed__exception-text">
+              Was it something outside your control — sickness, a family
+              emergency, all-day travel, a brutal work day?
+            </p>
+            <button
+              className="failed__exception-btn"
+              type="button"
+              onClick={() => setExceptionOpen(true)}
+            >
+              Use an Exception — Save Your Streak
+            </button>
+            <p className="failed__exception-hint">
+              The missed day won't count toward your 100, but your streak
+              survives. {exceptionStatus.remaining} of {exceptionStatus.max}{' '}
+              left this run.
+            </p>
+          </div>
+        )}
       </div>
+
+      {exceptionOpen && (
+        <ExceptionModal
+          target="yesterday"
+          remaining={exceptionStatus.remaining}
+          max={exceptionStatus.max}
+          onConfirm={async (category, note) => {
+            const result = await claimException('yesterday', category, note)
+            if (result.ok) navigate('/dashboard', { replace: true })
+            return result
+          }}
+          onClose={() => setExceptionOpen(false)}
+        />
+      )}
     </div>
   )
 }

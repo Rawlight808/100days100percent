@@ -398,3 +398,27 @@
     padding: 1.5rem 1rem;
   }
 }
+
+.dashboard__exception-hint {
+  margin: 0 0 1.5rem;
+  font-size: 0.78rem;
+  color: rgba(255, 255, 255, 0.4);
+  text-align: center;
+}
+
+.dashboard__exception-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: 600;
+  color: #2dd4bf;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.dashboard__exception-link:hover {
+  color: #5eead4;
+}

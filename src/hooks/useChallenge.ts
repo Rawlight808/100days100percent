@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
-import { useAuth } from '../contexts/AuthContext'
+import { useAuth } from '../contexts/auth-context'
 import {
   DAY_ROLLOVER_HOUR,
   addDaysToDateStr,
@@ -32,6 +32,7 @@ export interface DailyLog {
   all_completed: boolean
   journal_entry?: string | null
   is_sabbath?: boolean
+  is_exception?: boolean
 }
 
 /** Days of perfect completion required before the sabbath unlocks. */
@@ -41,6 +42,33 @@ export const SABBATH_UNLOCK_DAY = 3
 export const MAX_CAVEATS_PER_WINDOW = 1
 /** Days in the caveat week (used to compute when the next week begins). */
 export const CAVEAT_WINDOW_DAYS = 7
+
+/**
+ * Exceptions: whole-day exemptions for circumstances outside your control.
+ * An exception FREEZES the streak — the day doesn't count toward the 100,
+ * but the streak survives. Max per run, counted from streak_start_date.
+ */
+export const MAX_EXCEPTIONS_PER_RUN = 5
+
+export const EXCEPTION_CATEGORIES = [
+  'Sickness',
+  'Family emergency',
+  'Extreme work day',
+  'All-day travel',
+  'Other',
+] as const
+
+export type ExceptionCategory = (typeof EXCEPTION_CATEGORIES)[number]
+
+export interface ExceptionStatus {
+  used: number
+  remaining: number
+  max: number
+  /** Can claim an exception for today (freezes today). */
+  canUseToday: boolean
+  /** Can retroactively rescue yesterday from the failed screen. */
+  canRescueYesterday: boolean
+}
 
 export interface CaveatStatus {
   used: number
@@ -74,6 +102,23 @@ function caveatWindowStart(today: string): string {
   return weekStartStr(today)
 }
 
+/**
+ * Reset completion data without destroying journal history: logs with no
+ * journal entry are deleted; the rest are kept with completion cleared.
+ */
+async function clearLogsPreservingJournals(userId: string) {
+  await supabase.from('daily_logs').delete().eq('user_id', userId).is('journal_entry', null)
+  await supabase
+    .from('daily_logs')
+    .update({
+      completed_item_ids: [],
+      all_completed: false,
+      is_sabbath: false,
+      is_exception: false,
+    })
+    .eq('user_id', userId)
+}
+
 function computeFailedDay(streak: Streak, yesterday: string): number {
   if (streak.last_perfect_date === yesterday) return streak.current_day + 1
   return streak.current_day > 0 ? streak.current_day + 1 : 1
@@ -103,6 +148,7 @@ export function useChallenge() {
   const [sabbathThisWeek, setSabbathThisWeek] = useState<string | null>(null)
   const [failedDay, setFailedDay] = useState<number | null>(null)
   const [caveatLog, setCaveatLog] = useState<string[]>([])
+  const [exceptionDates, setExceptionDates] = useState<string[]>([])
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
@@ -113,16 +159,27 @@ export function useChallenge() {
   // from the DB in loadData. Here we only reset it when the user signs out.
   useEffect(() => {
     if (!user) {
+      // Intentional: clear local challenge state in response to a sign-out.
+      /* eslint-disable react-hooks/set-state-in-effect */
       setAdvancedTo(null)
       setFailedDay(null)
       setCaveatLog([])
+      setExceptionDates([])
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [user])
 
   const today = useMemo(() => {
     const natural = naturalToday()
     const calendar = calendarToday()
-    const manual = advancedTo && advancedTo > natural ? advancedTo : null
+    // Manual advance is capped at one day ahead of the natural day, so
+    // "Start Day N+1" can't be chained to skip through the challenge.
+    const manual =
+      advancedTo &&
+      advancedTo > natural &&
+      advancedTo <= addDaysToDateStr(natural, 1)
+        ? advancedTo
+        : null
     // If the 4am-held day has already been completed AND the real calendar
     // has crossed midnight, auto-roll to the calendar day. This prevents the
     // "open the app at 1am and see yesterday's already-checked boxes" confusion.
@@ -174,7 +231,7 @@ export function useChallenge() {
 
     const weekStart = weekStartStr(today)
 
-    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes] = await Promise.all([
+    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes] = await Promise.all([
       supabase.from('items').select('*').eq('user_id', user.id).order('position'),
       supabase
         .from('daily_logs')
@@ -198,6 +255,11 @@ export function useChallenge() {
         .select('log_date, item_id')
         .eq('user_id', user.id)
         .order('log_date', { ascending: false }),
+      supabase
+        .from('exception_events')
+        .select('log_date')
+        .eq('user_id', user.id)
+        .order('log_date', { ascending: false }),
     ])
 
     // The items + streak reads are essential. If either failed (e.g. offline or
@@ -210,6 +272,10 @@ export function useChallenge() {
     }
 
     setSabbathThisWeek((sabbathRes.data as { log_date: string } | null)?.log_date ?? null)
+
+    setExceptionDates(
+      ((exceptionRes.data ?? []) as { log_date: string }[]).map(r => r.log_date),
+    )
 
     const windowStart = caveatWindowStart(today)
     const caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
@@ -287,6 +353,8 @@ export function useChallenge() {
   }, [user, today, yesterday])
 
   useEffect(() => {
+    // Initial/dependency-driven data fetch; loadData manages its own loading state.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadData()
   }, [loadData])
 
@@ -307,7 +375,7 @@ export function useChallenge() {
   const saveItems = useCallback(
     async (texts: string[]) => {
       if (!user) return
-      await supabase.from('daily_logs').delete().eq('user_id', user.id)
+      await clearLogsPreservingJournals(user.id)
       await supabase.from('items').delete().eq('user_id', user.id)
 
       const rows = texts.map((text, i) => ({
@@ -428,23 +496,31 @@ export function useChallenge() {
         .from('daily_logs')
         .select('completed_item_ids, log_date')
         .eq('user_id', user.id)
+        .gte('log_date', addDaysToDateStr(today, -3))
         .order('log_date', { ascending: false })
-        .limit(3)
 
       if (!logs || logs.length === 0) return 0
 
+      const byDate = new Map<string, string[]>()
+      for (const log of logs as { completed_item_ids: string[] | null; log_date: string }[]) {
+        byDate.set(log.log_date, log.completed_item_ids ?? [])
+      }
+
+      // Count strictly consecutive days containing the item, walking back
+      // from today (or yesterday, if today doesn't include it yet). Gaps or
+      // stale logs from weeks ago no longer count.
+      let start = today
+      if (!(byDate.get(start) ?? []).includes(itemId)) start = yesterday
+
       let consecutive = 0
-      for (const log of logs) {
-        const ids: string[] = log.completed_item_ids ?? []
-        if (ids.includes(itemId)) {
-          consecutive++
-        } else {
-          break
-        }
+      let d = start
+      while ((byDate.get(d) ?? []).includes(itemId)) {
+        consecutive++
+        d = addDaysToDateStr(d, -1)
       }
       return consecutive
     },
-    [user],
+    [user, today, yesterday],
   )
 
   const updateItemText = useCallback(
@@ -478,6 +554,125 @@ export function useChallenge() {
         remaining > 0 ? null : addDaysToDateStr(windowStart, CAVEAT_WINDOW_DAYS),
     }
   }, [caveatLog, today])
+
+  const exceptionStatus = useMemo((): ExceptionStatus => {
+    const runStart = streak?.streak_start_date ?? null
+    const inRun = runStart ? exceptionDates.filter(d => d >= runStart) : exceptionDates
+    const used = inRun.length
+    const remaining = Math.max(0, MAX_EXCEPTIONS_PER_RUN - used)
+    const dayBeforeYesterday = addDaysToDateStr(today, -2)
+    // Rescue only works when exactly one day was missed (yesterday).
+    const canRescueYesterday =
+      remaining > 0 &&
+      !!streak &&
+      (streak.last_perfect_date === dayBeforeYesterday ||
+        (streak.last_perfect_date == null && streak.streak_start_date === yesterday))
+    const canUseToday =
+      remaining > 0 &&
+      !!streak &&
+      streak.last_perfect_date !== today &&
+      todayLog?.is_exception !== true &&
+      topTwelve.length > 0
+    return { used, remaining, max: MAX_EXCEPTIONS_PER_RUN, canUseToday, canRescueYesterday }
+  }, [exceptionDates, streak, today, yesterday, todayLog, topTwelve.length])
+
+  /**
+   * Claim an Exception: a whole-day exemption for circumstances outside your
+   * control. FREEZES the streak — sets last_perfect_date to the target day
+   * without advancing current_day, so the day doesn't count toward the 100
+   * but the streak survives. `target: 'yesterday'` rescues a missed day from
+   * the failed screen.
+   */
+  const claimException = useCallback(
+    async (
+      target: 'today' | 'yesterday',
+      category: string,
+      note: string,
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!user || !streakRef.current) {
+        return { ok: false, error: 'You must be signed in.' }
+      }
+      const s = streakRef.current
+      const runStart = s.streak_start_date
+      const used = exceptionDates.filter(d => !runStart || d >= runStart).length
+      if (used >= MAX_EXCEPTIONS_PER_RUN) {
+        return {
+          ok: false,
+          error: `You've used all ${MAX_EXCEPTIONS_PER_RUN} exceptions for this run.`,
+        }
+      }
+      const targetDate = target === 'today' ? today : yesterday
+
+      // Record the event first so it syncs across devices; the unique
+      // (user_id, log_date) constraint makes double-claims impossible.
+      const { error: eventError } = await supabase.from('exception_events').insert({
+        user_id: user.id,
+        log_date: targetDate,
+        category,
+        note: note.trim() || null,
+      })
+      if (eventError) {
+        return { ok: false, error: 'Could not save this exception. Please try again.' }
+      }
+      setExceptionDates(prev => [...prev, targetDate])
+
+      // Mark the day's log as an exception day (preserving journal/checks).
+      const { data: existingLog } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('log_date', targetDate)
+        .maybeSingle()
+
+      if (existingLog) {
+        await supabase
+          .from('daily_logs')
+          .update({ is_exception: true })
+          .eq('id', (existingLog as DailyLog).id)
+        if (targetDate === today) {
+          const updated = { ...(existingLog as DailyLog), is_exception: true }
+          setTodayLog(updated)
+          todayLogRef.current = updated
+        }
+      } else {
+        const { data: newLog } = await supabase
+          .from('daily_logs')
+          .insert({
+            user_id: user.id,
+            log_date: targetDate,
+            completed_item_ids: [],
+            all_completed: false,
+            is_exception: true,
+          })
+          .select()
+          .single()
+        if (newLog && targetDate === today) {
+          setTodayLog(newLog as DailyLog)
+          todayLogRef.current = newLog as DailyLog
+        }
+      }
+
+      // Freeze: continuity without advancement.
+      const { data: updatedStreak } = await supabase
+        .from('streaks')
+        .update({
+          last_perfect_date: targetDate,
+          failed_day: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single()
+      if (updatedStreak) {
+        setStreak(updatedStreak as Streak)
+        streakRef.current = updatedStreak as Streak
+      }
+      setFailedDay(null)
+
+      return { ok: true }
+    },
+    [user, exceptionDates, today, yesterday],
+  )
 
   const updateItemCaveat = useCallback(
     async (
@@ -549,7 +744,7 @@ export function useChallenge() {
       .from('items')
       .update({ is_top_twelve: false })
       .eq('user_id', user.id)
-    await supabase.from('daily_logs').delete().eq('user_id', user.id)
+    await clearLogsPreservingJournals(user.id)
     await supabase
       .from('streaks')
       .update({
@@ -575,6 +770,8 @@ export function useChallenge() {
 
   const advanceDay = useCallback(async () => {
     if (!user) return
+    // Only advance from the natural day — prevents chaining advances.
+    if (today > naturalToday()) return
     const next = addDaysToDateStr(today, 1)
     setAdvancedTo(next)
     await supabase
@@ -759,6 +956,8 @@ export function useChallenge() {
     updateItemText,
     updateItemCaveat,
     caveatStatus,
+    exceptionStatus,
+    claimException,
     reorderItems,
     saveJournal,
     getJournalEntries,
