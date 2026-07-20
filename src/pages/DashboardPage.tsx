@@ -259,20 +259,6 @@ export function DashboardPage() {
         <p className="dashboard__sabbath-tag">Today was your sabbath.</p>
       )}
 
-      {!displayDay.completedToday && exceptionStatus.canUseToday && (
-        <p className="dashboard__exception-hint">
-          Sick, traveling all day, or in an emergency?{' '}
-          <button
-            type="button"
-            className="dashboard__exception-link"
-            onClick={() => setExceptionOpen(true)}
-          >
-            Use an Exception
-          </button>{' '}
-          ({exceptionStatus.remaining} left this run)
-        </p>
-      )}
-
       {editError && (
         <p className="dashboard__edit-error">{editError}</p>
       )}
@@ -394,6 +380,20 @@ export function DashboardPage() {
           onChange={e => handleJournalChange(e.target.value)}
         />
       </div>
+
+      {!displayDay.completedToday && exceptionStatus.canUseToday && (
+        <p className="dashboard__exception-hint">
+          Sick, traveling all day, or in an emergency?{' '}
+          <button
+            type="button"
+            className="dashboard__exception-link"
+            onClick={() => setExceptionOpen(true)}
+          >
+            Use an Exception
+          </button>{' '}
+          ({exceptionStatus.remaining} left this run)
+        </p>
+      )}
 
       {celebrate && (
         <div className="dashboard__celebration" aria-hidden="true">
