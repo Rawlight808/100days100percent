@@ -25,7 +25,7 @@ on Vercel.
   control (sickness, family emergency, extreme work day, all-day travel).
   Freezes the streak: the day doesn't count toward the 100, but you don't
   reset. 5 per run; claimable for today, or retroactively for yesterday from
-  the failed screen. Requires a category + note.
+  the failed screen. Requires a reason (pick a category, write a note, or both).
 - **Daily journal** with a browsable calendar of past entries. Journal
   history now survives restarts.
 - **Editing** a habit is allowed only after completing it 3 days in a row.

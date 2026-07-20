@@ -36,11 +36,15 @@ export function ExceptionModal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  const trimmedNote = note.trim()
+  const canConfirm = Boolean(category || trimmedNote)
+
   const handleConfirm = async () => {
-    if (!category) return
+    if (!canConfirm) return
     setSaving(true)
     setError(null)
-    const result = await onConfirm(category, note)
+    // A freeform note alone is enough; fall back to "Other" when no chip is picked.
+    const result = await onConfirm(category ?? 'Other', note)
     setSaving(false)
     if (!result.ok) {
       setError(result.error ?? 'Could not save this exception.')
@@ -72,14 +76,14 @@ export function ExceptionModal({
           </p>
         </div>
 
-        <p className="exception-modal__section-label">What happened?</p>
+        <p className="exception-modal__section-label">What happened? (pick one, or just write it)</p>
         <div className="exception-modal__categories">
           {EXCEPTION_CATEGORIES.map(c => (
             <button
               key={c}
               type="button"
               className={`exception-modal__chip${category === c ? ' exception-modal__chip--active' : ''}`}
-              onClick={() => setCategory(c)}
+              onClick={() => setCategory(prev => (prev === c ? null : c))}
             >
               {c}
             </button>
@@ -90,7 +94,7 @@ export function ExceptionModal({
           className="exception-modal__textarea"
           value={note}
           maxLength={NOTE_MAX_LENGTH}
-          placeholder="Briefly, what made the day impossible? (optional, but be honest)"
+          placeholder="Briefly, what made the day impossible?"
           onChange={e => setNote(e.target.value)}
         />
 
@@ -114,7 +118,7 @@ export function ExceptionModal({
             type="button"
             className="exception-modal__btn exception-modal__btn--confirm"
             onClick={handleConfirm}
-            disabled={saving || !category}
+            disabled={saving || !canConfirm}
           >
             {saving ? 'Saving…' : 'Use Exception'}
           </button>
