@@ -119,26 +119,36 @@ async function clearLogsPreservingJournals(userId: string) {
     .eq('user_id', userId)
 }
 
-function computeFailedDay(streak: Streak, yesterday: string): number {
-  if (streak.last_perfect_date === yesterday) return streak.current_day + 1
+function computeFailedDay(streak: Streak, naturalYesterday: string): number {
+  if (streak.last_perfect_date === naturalYesterday) return streak.current_day + 1
   return streak.current_day > 0 ? streak.current_day + 1 : 1
 }
 
+/**
+ * Failure is judged against the *natural* challenge clock only — never the
+ * manually-advanced UI day. Using `advanced_to` here used to flip phase between
+ * ready/failed on every remount (advancedTo resets to null, then rehydrates),
+ * which bounced users between /dashboard and /failed in a loop.
+ */
 function isStreakBroken(
   streak: Streak,
-  today: string,
-  yesterday: string,
+  natural: string,
+  naturalYesterday: string,
   activeChallenge: boolean,
 ): boolean {
   if (!activeChallenge) return false
-  const pastFirstDay = today > (streak.streak_start_date ?? today)
-  const missedPreviousDay = streak.last_perfect_date !== yesterday
-  const notCompletedToday = streak.last_perfect_date !== today
+  const pastFirstDay = natural > (streak.streak_start_date ?? natural)
+  const missedPreviousDay = streak.last_perfect_date !== naturalYesterday
+  const notCompletedToday = streak.last_perfect_date !== natural
   return pastFirstDay && missedPreviousDay && notCompletedToday
 }
 
+/** Survive route remounts so "Start Day N+1" doesn't briefly fall back to natural. */
+const advancedToCache = new Map<string, string | null>()
+
 export function useChallenge() {
   const { user } = useAuth()
+  const userId = user?.id ?? null
   const [items, setItems] = useState<Item[]>([])
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [streak, setStreak] = useState<Streak | null>(null)
@@ -152,22 +162,39 @@ export function useChallenge() {
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
+  const loadSeqRef = useRef(0)
 
-  const [advancedTo, setAdvancedTo] = useState<string | null>(null)
+  const [advancedTo, setAdvancedToState] = useState<string | null>(() =>
+    userId && advancedToCache.has(userId) ? (advancedToCache.get(userId) ?? null) : null,
+  )
+
+  const setAdvancedTo = useCallback(
+    (value: string | null) => {
+      if (userId) advancedToCache.set(userId, value)
+      setAdvancedToState(value)
+    },
+    [userId],
+  )
 
   // Challenge state (failed day, manual day advance, caveat log) is hydrated
   // from the DB in loadData. Here we only reset it when the user signs out.
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       // Intentional: clear local challenge state in response to a sign-out.
       /* eslint-disable react-hooks/set-state-in-effect */
-      setAdvancedTo(null)
+      setAdvancedToState(null)
       setFailedDay(null)
       setCaveatLog([])
       setExceptionDates([])
       /* eslint-enable react-hooks/set-state-in-effect */
+    } else if (advancedToCache.has(userId)) {
+      // Restore manual advance immediately so the first paint matches the DB
+      // and we don't evaluate the wrong "today" before hydration finishes.
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setAdvancedToState(advancedToCache.get(userId) ?? null)
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
-  }, [user])
+  }, [userId])
 
   const today = useMemo(() => {
     const natural = naturalToday()
@@ -225,25 +252,30 @@ export function useChallenge() {
   }, [streak])
 
   const loadData = useCallback(async () => {
-    if (!user) return
+    if (!userId) return
+    const seq = ++loadSeqRef.current
     setLoading(true)
     setLoadError(false)
 
+    // Always re-read the natural clock inside the fetch — `today` may be the
+    // manually advanced day, but fail/survive must use the real challenge day.
+    const naturalNow = naturalToday()
+    const naturalYday = addDaysToDateStr(naturalNow, -1)
     const weekStart = weekStartStr(today)
 
     const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes] = await Promise.all([
-      supabase.from('items').select('*').eq('user_id', user.id).order('position'),
+      supabase.from('items').select('*').eq('user_id', userId).order('position'),
       supabase
         .from('daily_logs')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('log_date', today)
         .maybeSingle(),
-      supabase.from('streaks').select('*').eq('user_id', user.id).maybeSingle(),
+      supabase.from('streaks').select('*').eq('user_id', userId).maybeSingle(),
       supabase
         .from('daily_logs')
         .select('log_date')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('is_sabbath', true)
         .gte('log_date', weekStart)
         .lte('log_date', today)
@@ -253,14 +285,18 @@ export function useChallenge() {
       supabase
         .from('caveat_events')
         .select('log_date, item_id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('log_date', { ascending: false }),
       supabase
         .from('exception_events')
         .select('log_date')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .order('log_date', { ascending: false }),
     ])
+
+    // A newer load started (today changed, remount, etc.) — drop this result
+    // so two overlapping fetches can't flip failed ↔ ready against each other.
+    if (seq !== loadSeqRef.current) return
 
     // The items + streak reads are essential. If either failed (e.g. offline or
     // a transient network error), surface a retryable error rather than wiping
@@ -303,6 +339,7 @@ export function useChallenge() {
 
     if (expiredItemIds.length > 0) {
       await supabase.from('items').update({ caveat: null }).in('id', expiredItemIds)
+      if (seq !== loadSeqRef.current) return
       const expired = new Set(expiredItemIds)
       loadedItems = loadedItems.map(i =>
         expired.has(i.id) ? { ...i, caveat: null } : i,
@@ -322,35 +359,53 @@ export function useChallenge() {
     if (!s) {
       const { data } = await supabase
         .from('streaks')
-        .insert({ user_id: user.id, current_day: 0, streak_start_date: today })
+        .insert({ user_id: userId, current_day: 0, streak_start_date: today })
         .select()
         .single()
+      if (seq !== loadSeqRef.current) return
       s = data as Streak
     }
 
-    if (s && activeChallenge && isStreakBroken(s, today, yesterday, activeChallenge)) {
-      const day = computeFailedDay(s, yesterday)
+    if (s && activeChallenge && isStreakBroken(s, naturalNow, naturalYday, activeChallenge)) {
+      const day = computeFailedDay(s, naturalYday)
       setFailedDay(day)
       if (s.failed_day !== day) {
-        await supabase.from('streaks').update({ failed_day: day }).eq('user_id', user.id)
+        await supabase.from('streaks').update({ failed_day: day }).eq('user_id', userId)
+        if (seq !== loadSeqRef.current) return
         s = { ...s, failed_day: day }
       }
     } else {
       setFailedDay(null)
       if (s && s.failed_day != null) {
-        await supabase.from('streaks').update({ failed_day: null }).eq('user_id', user.id)
+        await supabase.from('streaks').update({ failed_day: null }).eq('user_id', userId)
+        if (seq !== loadSeqRef.current) return
         s = { ...s, failed_day: null }
       }
     }
 
-    // Hydrate the manual day-advance from the DB. Changing it recomputes
-    // `today`, which re-runs loadData once for the advanced day (then settles).
-    setAdvancedTo(s?.advanced_to ?? null)
+    // Hydrate manual day-advance. Drop stale values that are no longer ahead of
+    // the natural day so they can't keep shifting `today` on every remount.
+    const rawAdvanced = s?.advanced_to ?? null
+    const validAdvanced =
+      rawAdvanced &&
+      rawAdvanced > naturalNow &&
+      rawAdvanced <= addDaysToDateStr(naturalNow, 1)
+        ? rawAdvanced
+        : null
+    if (s && rawAdvanced && !validAdvanced) {
+      await supabase
+        .from('streaks')
+        .update({ advanced_to: null, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+      if (seq !== loadSeqRef.current) return
+      s = { ...s, advanced_to: null }
+    }
+    setAdvancedTo(validAdvanced)
 
     setStreak(s)
     streakRef.current = s
     setLoading(false)
-  }, [user, today, yesterday])
+  }, [userId, today, setAdvancedTo])
 
   useEffect(() => {
     // Initial/dependency-driven data fetch; loadData manages its own loading state.
