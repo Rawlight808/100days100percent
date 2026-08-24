@@ -422,3 +422,24 @@
 .dashboard__exception-link:hover {
   color: #5eead4;
 }
+
+.dashboard__finish {
+  margin: 0;
+  padding: 0.25rem 0 0.5rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(255, 255, 255, 0.38);
+  text-align: center;
+}
+
+.dashboard__finish-date {
+  color: rgba(245, 158, 11, 0.9);
+  font-weight: 500;
+}
+
+.dashboard__finish-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.28);
+}

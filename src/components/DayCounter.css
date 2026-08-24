@@ -27,25 +27,6 @@
   margin-top: 0.5rem;
 }
 
-.day-counter__finish {
-  margin: 0.85rem 0 0;
-  font-size: 0.82rem;
-  line-height: 1.45;
-  color: rgba(255, 255, 255, 0.38);
-}
-
-.day-counter__finish-date {
-  color: rgba(245, 158, 11, 0.9);
-  font-weight: 500;
-}
-
-.day-counter__finish-note {
-  display: block;
-  margin-top: 0.2rem;
-  font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.28);
-}
-
 .day-counter--complete .day-counter__number {
   color: #10b981;
   text-shadow: 0 0 40px rgba(16, 185, 129, 0.25);

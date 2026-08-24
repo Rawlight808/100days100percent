@@ -12,6 +12,7 @@ import { ExceptionModal } from '../components/ExceptionModal'
 import { JournalCalendar } from '../components/JournalCalendar'
 import { JournalEntryModal } from '../components/JournalEntryModal'
 import { AppNav } from '../components/AppNav'
+import { formatChallengeDate } from '../lib/challengeDay'
 import './DashboardPage.css'
 
 export function DashboardPage() {
@@ -218,9 +219,6 @@ export function DashboardPage() {
         totalDays={REQUIRED_DAYS}
         completedToday={displayDay.completedToday}
         celebrate={celebrate}
-        finishDate={projectedFinish?.date ?? null}
-        exceptionsUsed={projectedFinish?.exceptionsUsed ?? 0}
-        finished={projectedFinish?.finished ?? false}
       />
 
       <p className="dashboard__daily-msg">
@@ -396,6 +394,21 @@ export function DashboardPage() {
             Use an Exception
           </button>{' '}
           ({exceptionStatus.remaining} left this run)
+        </p>
+      )}
+
+      {projectedFinish?.date && (
+        <p className="dashboard__finish">
+          {projectedFinish.finished ? 'Finished' : 'Ends'}{' '}
+          <span className="dashboard__finish-date">
+            {formatChallengeDate(projectedFinish.date)}
+          </span>
+          {projectedFinish.exceptionsUsed > 0 && (
+            <span className="dashboard__finish-note">
+              {projectedFinish.exceptionsUsed} exception
+              {projectedFinish.exceptionsUsed === 1 ? '' : 's'} added
+            </span>
+          )}
         </p>
       )}
 
