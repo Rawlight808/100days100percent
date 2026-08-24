@@ -138,7 +138,9 @@ function isStreakBroken(
   activeChallenge: boolean,
 ): boolean {
   if (!activeChallenge) return false
-  const pastFirstDay = natural > (streak.streak_start_date ?? natural)
+  // The run does not start until daily habits are locked in.
+  if (!streak.streak_start_date) return false
+  const pastFirstDay = natural > streak.streak_start_date
   const missedPreviousDay = streak.last_perfect_date !== naturalYesterday
   const notCompletedToday = streak.last_perfect_date !== natural
   return pastFirstDay && missedPreviousDay && notCompletedToday
@@ -360,14 +362,31 @@ export function useChallenge() {
     if (!s) {
       const { data } = await supabase
         .from('streaks')
-        .insert({ user_id: userId, current_day: 0, streak_start_date: today })
+        .insert({ user_id: userId, current_day: 0, streak_start_date: null })
         .select()
         .single()
       if (seq !== loadSeqRef.current) return
       s = data as Streak
     }
 
-    if (s && activeChallenge && isStreakBroken(s, naturalNow, naturalYday, activeChallenge)) {
+    if (s && activeChallenge && s.current_day === 0 && s.last_perfect_date == null) {
+      // Habits are locked in but no counted day has happened yet. The 100-day
+      // clock starts on this first real challenge day — not on earlier visits
+      // spent writing or picking the list.
+      if (s.streak_start_date !== naturalNow) {
+        await supabase
+          .from('streaks')
+          .update({
+            streak_start_date: naturalNow,
+            failed_day: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('user_id', userId)
+        if (seq !== loadSeqRef.current) return
+        s = { ...s, streak_start_date: naturalNow, failed_day: null }
+      }
+      setFailedDay(null)
+    } else if (s && activeChallenge && isStreakBroken(s, naturalNow, naturalYday, activeChallenge)) {
       const day = computeFailedDay(s, naturalYday)
       setFailedDay(day)
       if (s.failed_day !== day) {
@@ -452,7 +471,7 @@ export function useChallenge() {
         .update({
           current_day: 0,
           last_perfect_date: null,
-          streak_start_date: today,
+          streak_start_date: null,
           failed_day: null,
           advanced_to: null,
           updated_at: new Date().toISOString(),
@@ -462,8 +481,13 @@ export function useChallenge() {
       setAdvancedTo(null)
       setFailedDay(null)
       setSabbathThisWeek(null)
+      setStreak(prev =>
+        prev
+          ? { ...prev, current_day: 0, last_perfect_date: null, streak_start_date: null, failed_day: null, advanced_to: null }
+          : prev,
+      )
     },
-    [user, today],
+    [user],
   )
 
   const saveTopTwelve = useCallback(
@@ -485,8 +509,29 @@ export function useChallenge() {
         .eq('user_id', user.id)
         .order('position')
       if (data) setItems(data as Item[])
+
+      // The 100-day clock starts here — not when the 100 list is written.
+      const { data: started } = await supabase
+        .from('streaks')
+        .update({
+          current_day: 0,
+          last_perfect_date: null,
+          streak_start_date: today,
+          failed_day: null,
+          advanced_to: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single()
+      if (started) {
+        setStreak(started as Streak)
+        streakRef.current = started as Streak
+      }
+      setAdvancedTo(null)
+      setFailedDay(null)
     },
-    [user],
+    [user, today],
   )
 
   const saveJournal = useCallback(
@@ -824,7 +869,7 @@ export function useChallenge() {
       .update({
         current_day: 0,
         last_perfect_date: null,
-        streak_start_date: today,
+        streak_start_date: null,
         failed_day: null,
         advanced_to: null,
         updated_at: new Date().toISOString(),
@@ -836,7 +881,7 @@ export function useChallenge() {
     setSabbathThisWeek(null)
 
     await loadData()
-  }, [user, today, loadData])
+  }, [user, loadData])
 
   const restartFromFailure = useCallback(async () => {
     await resetToSelect()
