@@ -39,6 +39,7 @@ export function DashboardPage() {
     caveatStatus,
     exceptionStatus,
     claimException,
+    projectedFinish,
     sabbathStatus,
     takeSabbath,
   } = useChallenge()
@@ -217,6 +218,9 @@ export function DashboardPage() {
         totalDays={REQUIRED_DAYS}
         completedToday={displayDay.completedToday}
         celebrate={celebrate}
+        finishDate={projectedFinish?.date ?? null}
+        exceptionsUsed={projectedFinish?.exceptionsUsed ?? 0}
+        finished={projectedFinish?.finished ?? false}
       />
 
       <p className="dashboard__daily-msg">

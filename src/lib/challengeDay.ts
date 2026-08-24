@@ -35,6 +35,31 @@ export function addDaysToDateStr(dateStr: string, delta: number): string {
   return toDateStr(date)
 }
 
+/** Human date for a challenge-day string (local calendar, not UTC). */
+export function formatChallengeDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+/**
+ * Calendar date of Day 100, counting from the run start. Exception days freeze
+ * the streak and do not count, so each one pushes the finish out by one day.
+ */
+export function projectedFinishDate(
+  startDate: string | null | undefined,
+  exceptionsUsed: number,
+  requiredDays: number,
+): string | null {
+  if (!startDate) return null
+  const extra = Math.max(0, exceptionsUsed)
+  return addDaysToDateStr(startDate, requiredDays - 1 + extra)
+}
+
 export function weekStartStr(dateStr: string): string {
   const [y, m, d] = dateStr.split('-').map(Number)
   const date = new Date(y, m - 1, d)

@@ -103,7 +103,7 @@ export function AppNav({
                   For circumstances truly outside your control: sickness, family
                   emergency, extreme work day, all-day travel.
                 </li>
-                <li>Freezes your streak — the day does not count toward your 100, but you do not reset.</li>
+                <li>Freezes your streak — the day does not count toward your 100, but you do not reset. Each one pushes your finish date out by one day.</li>
                 <li>5 per run. Claim one for today, or rescue yesterday from the failed screen.</li>
                 <li>Requires a reason. Be honest — this is your challenge.</li>
               </ul>

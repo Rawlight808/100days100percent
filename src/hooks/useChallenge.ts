@@ -6,6 +6,7 @@ import {
   addDaysToDateStr,
   calendarToday,
   naturalToday,
+  projectedFinishDate,
   weekStartStr,
 } from '../lib/challengeDay'
 
@@ -610,10 +611,28 @@ export function useChallenge() {
     }
   }, [caveatLog, today])
 
-  const exceptionStatus = useMemo((): ExceptionStatus => {
+  const exceptionsUsedThisRun = useMemo(() => {
     const runStart = streak?.streak_start_date ?? null
     const inRun = runStart ? exceptionDates.filter(d => d >= runStart) : exceptionDates
-    const used = inRun.length
+    return inRun.length
+  }, [exceptionDates, streak?.streak_start_date])
+
+  const projectedFinish = useMemo(() => {
+    const date = projectedFinishDate(
+      streak?.streak_start_date,
+      exceptionsUsedThisRun,
+      REQUIRED_DAYS,
+    )
+    if (!date) return null
+    return {
+      date,
+      exceptionsUsed: exceptionsUsedThisRun,
+      finished: (streak?.current_day ?? 0) >= REQUIRED_DAYS,
+    }
+  }, [streak?.streak_start_date, streak?.current_day, exceptionsUsedThisRun])
+
+  const exceptionStatus = useMemo((): ExceptionStatus => {
+    const used = exceptionsUsedThisRun
     const remaining = Math.max(0, MAX_EXCEPTIONS_PER_RUN - used)
     const dayBeforeYesterday = addDaysToDateStr(today, -2)
     // Rescue only works when exactly one day was missed (yesterday).
@@ -629,7 +648,7 @@ export function useChallenge() {
       todayLog?.is_exception !== true &&
       topTwelve.length > 0
     return { used, remaining, max: MAX_EXCEPTIONS_PER_RUN, canUseToday, canRescueYesterday }
-  }, [exceptionDates, streak, today, yesterday, todayLog, topTwelve.length])
+  }, [exceptionsUsedThisRun, streak, today, yesterday, todayLog, topTwelve.length])
 
   /**
    * Claim an Exception: a whole-day exemption for circumstances outside your
@@ -1013,6 +1032,7 @@ export function useChallenge() {
     caveatStatus,
     exceptionStatus,
     claimException,
+    projectedFinish,
     reorderItems,
     saveJournal,
     getJournalEntries,
