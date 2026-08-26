@@ -399,14 +399,26 @@ export function DashboardPage() {
 
       {projectedFinish?.date && (
         <p className="dashboard__finish">
-          {projectedFinish.finished ? 'Finished' : 'Ends'}{' '}
-          <span className="dashboard__finish-date">
-            {formatChallengeDate(projectedFinish.date)}
-          </span>
-          {projectedFinish.exceptionsUsed > 0 && (
+          {projectedFinish.finished ? (
+            <>
+              You made it —{' '}
+              <span className="dashboard__finish-date">
+                {formatChallengeDate(projectedFinish.date)}
+              </span>
+            </>
+          ) : (
+            <>
+              Day 100 lands on{' '}
+              <span className="dashboard__finish-date">
+                {formatChallengeDate(projectedFinish.date)}
+              </span>
+            </>
+          )}
+          {projectedFinish.exceptionsUsed > 0 && !projectedFinish.finished && (
             <span className="dashboard__finish-note">
-              {projectedFinish.exceptionsUsed} exception
-              {projectedFinish.exceptionsUsed === 1 ? '' : 's'} added
+              {projectedFinish.exceptionsUsed === 1
+                ? 'One extra day for life happening'
+                : `${projectedFinish.exceptionsUsed} extra days for life happening`}
             </span>
           )}
         </p>
