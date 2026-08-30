@@ -9,6 +9,7 @@ import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import { CaveatModal } from '../components/CaveatModal'
 import { ExceptionModal } from '../components/ExceptionModal'
+import { HyperDriveModal } from '../components/HyperDriveModal'
 import { JournalCalendar } from '../components/JournalCalendar'
 import { JournalEntryModal } from '../components/JournalEntryModal'
 import { AppNav } from '../components/AppNav'
@@ -43,6 +44,8 @@ export function DashboardPage() {
     projectedFinish,
     sabbathStatus,
     takeSabbath,
+    hyperdriveStatus,
+    takeHyperDrive,
   } = useChallenge()
   const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
@@ -62,6 +65,7 @@ export function DashboardPage() {
   const [editError, setEditError] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
   const [exceptionOpen, setExceptionOpen] = useState(false)
+  const [hyperdriveOpen, setHyperdriveOpen] = useState(false)
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({})
   const [viewingDate, setViewingDate] = useState<string | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -238,27 +242,45 @@ export function DashboardPage() {
       </div>
 
       {!displayDay.completedToday && (
-        <div className="dashboard__sabbath">
-          <button
-            className="dashboard__sabbath-btn"
-            type="button"
-            onClick={handleSabbath}
-            disabled={!sabbathStatus.canTake}
-          >
-            Take Sabbath
-          </button>
+        <div className="dashboard__day-modes">
+          <div className="dashboard__day-modes-row">
+            <button
+              className="dashboard__sabbath-btn"
+              type="button"
+              onClick={handleSabbath}
+              disabled={!sabbathStatus.canTake}
+            >
+              Take Sabbath
+            </button>
+            <button
+              className="dashboard__hyperdrive-btn"
+              type="button"
+              onClick={() => setHyperdriveOpen(true)}
+              disabled={!hyperdriveStatus.canUseToday}
+            >
+              Hyper Drive
+            </button>
+          </div>
           <p className="dashboard__sabbath-hint">
             {!sabbathStatus.unlocked
-              ? `Unlocks after ${sabbathStatus.daysUntilUnlock} more perfect day${sabbathStatus.daysUntilUnlock === 1 ? '' : 's'}.`
+              ? `Sabbath unlocks after ${sabbathStatus.daysUntilUnlock} more perfect day${sabbathStatus.daysUntilUnlock === 1 ? '' : 's'}.`
               : sabbathStatus.usedThisWeek
-                ? 'Already used this week. Resets Sunday.'
-                : 'One day of rest per week. Checks every item and advances your streak.'}
+                ? 'Sabbath already used this week. Resets Sunday.'
+                : 'Sabbath: one rest day per week. Counts toward your 100.'}
+          </p>
+          <p className="dashboard__sabbath-hint">
+            {hyperdriveStatus.remaining === 0
+              ? 'Hyper Drive already used twice this week. Resets Sunday.'
+              : `Hyper Drive: deep goal work instead of the list. ${hyperdriveStatus.remaining} left this week.`}
           </p>
         </div>
       )}
 
       {displayDay.completedToday && sabbathStatus.todayIsSabbath && (
         <p className="dashboard__sabbath-tag">Today was your sabbath.</p>
+      )}
+      {displayDay.completedToday && hyperdriveStatus.todayIsHyperDrive && (
+        <p className="dashboard__hyperdrive-tag">Today was Hyper Drive.</p>
       )}
 
       {editError && (
@@ -316,16 +338,20 @@ export function DashboardPage() {
           <div className="dashboard__complete-title">
             {todayLog?.is_exception
               ? 'Exception day — streak frozen'
-              : displayDay.day >= REQUIRED_DAYS
-                ? 'You did it. 100 days of 100%.'
-                : `Day ${displayDay.day} — Complete`}
+              : todayLog?.is_hyperdrive
+                ? 'Hyper Drive — you stayed in the work'
+                : displayDay.day >= REQUIRED_DAYS
+                  ? 'You did it. 100 days of 100%.'
+                  : `Day ${displayDay.day} — Complete`}
           </div>
           <div className="dashboard__complete-text">
             {todayLog?.is_exception
               ? `Today doesn't count toward your 100, but your streak survives. Day ${displayDay.day + 1} resumes tomorrow. Take care of what matters.`
-              : displayDay.day >= REQUIRED_DAYS
-                ? 'Incredible. You committed and followed through. This is who you are now.'
-                : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
+              : todayLog?.is_hyperdrive
+                ? `Today counts. You were already doing the thing the list exists for. Day ${displayDay.day + 1} is tomorrow.`
+                : displayDay.day >= REQUIRED_DAYS
+                  ? 'Incredible. You committed and followed through. This is who you are now.'
+                  : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
           </div>
           {displayDay.day < REQUIRED_DAYS && (
             <>
@@ -453,6 +479,15 @@ export function DashboardPage() {
           max={exceptionStatus.max}
           onConfirm={(category, note) => claimException('today', category, note)}
           onClose={() => setExceptionOpen(false)}
+        />
+      )}
+
+      {hyperdriveOpen && (
+        <HyperDriveModal
+          remaining={hyperdriveStatus.remaining}
+          max={hyperdriveStatus.max}
+          onConfirm={note => takeHyperDrive(note)}
+          onClose={() => setHyperdriveOpen(false)}
         />
       )}
 

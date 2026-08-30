@@ -97,6 +97,26 @@ export function AppNav({
             </div>
 
             <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Hyper Drive</h3>
+              <ul className="app-nav__rules-list">
+                <li>
+                  For a day spent almost entirely on work that moves you toward
+                  your goals — learning a skill, preparing for an event, building
+                  something that matters.
+                </li>
+                <li>
+                  You still have to keep every rule that excludes certain
+                  activities.
+                </li>
+                <li>
+                  The day counts toward your 100 and advances your streak. Do
+                  not break deep work just to check boxes.
+                </li>
+                <li>2 per week. Resets Sunday. Requires an honest yes to all three questions.</li>
+              </ul>
+            </div>
+
+            <div className="app-nav__menu-section">
               <h3 className="app-nav__menu-heading">Exceptions</h3>
               <ul className="app-nav__rules-list">
                 <li>

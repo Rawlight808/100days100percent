@@ -91,6 +91,25 @@
   color: rgba(255, 255, 255, 0.3);
 }
 
+.dashboard__day-modes {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 1.5rem;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.dashboard__day-modes-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
 .dashboard__sabbath {
   display: flex;
   flex-direction: column;
@@ -141,6 +160,41 @@
   text-align: center;
   font-size: 0.85rem;
   color: #f59e0b;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard__hyperdrive-btn {
+  padding: 0.55rem 1.4rem;
+  border: 1px solid rgba(251, 146, 60, 0.4);
+  border-radius: 999px;
+  background: transparent;
+  color: #fb923c;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard__hyperdrive-btn:hover:not(:disabled) {
+  background: rgba(251, 146, 60, 0.1);
+  border-color: rgba(251, 146, 60, 0.7);
+  transform: translateY(-1px);
+}
+
+.dashboard__hyperdrive-btn:disabled {
+  color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
+}
+
+.dashboard__hyperdrive-tag {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #fb923c;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

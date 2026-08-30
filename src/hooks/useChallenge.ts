@@ -34,6 +34,7 @@ export interface DailyLog {
   journal_entry?: string | null
   is_sabbath?: boolean
   is_exception?: boolean
+  is_hyperdrive?: boolean
 }
 
 /** Days of perfect completion required before the sabbath unlocks. */
@@ -50,6 +51,17 @@ export const CAVEAT_WINDOW_DAYS = 7
  * but the streak survives. Max per run, counted from streak_start_date.
  */
 export const MAX_EXCEPTIONS_PER_RUN = 5
+
+/** Deep-work days that still count toward the 100. Per calendar week. */
+export const MAX_HYPERDRIVE_PER_WEEK = 2
+
+export interface HyperDriveStatus {
+  used: number
+  remaining: number
+  max: number
+  canUseToday: boolean
+  todayIsHyperDrive: boolean
+}
 
 export const EXCEPTION_CATEGORIES = [
   'Sickness',
@@ -116,6 +128,7 @@ async function clearLogsPreservingJournals(userId: string) {
       all_completed: false,
       is_sabbath: false,
       is_exception: false,
+      is_hyperdrive: false,
     })
     .eq('user_id', userId)
 }
@@ -162,6 +175,7 @@ export function useChallenge() {
   const [failedDay, setFailedDay] = useState<number | null>(null)
   const [caveatLog, setCaveatLog] = useState<string[]>([])
   const [exceptionDates, setExceptionDates] = useState<string[]>([])
+  const [hyperdriveDates, setHyperdriveDates] = useState<string[]>([])
 
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
@@ -189,6 +203,7 @@ export function useChallenge() {
       setFailedDay(null)
       setCaveatLog([])
       setExceptionDates([])
+      setHyperdriveDates([])
       /* eslint-enable react-hooks/set-state-in-effect */
     } else if (advancedToCache.has(userId)) {
       // Restore manual advance immediately so the first paint matches the DB
@@ -266,7 +281,7 @@ export function useChallenge() {
     const naturalYday = addDaysToDateStr(naturalNow, -1)
     const weekStart = weekStartStr(today)
 
-    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes] = await Promise.all([
+    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes, hyperRes] = await Promise.all([
       supabase.from('items').select('*').eq('user_id', userId).order('position'),
       supabase
         .from('daily_logs')
@@ -295,6 +310,11 @@ export function useChallenge() {
         .select('log_date')
         .eq('user_id', userId)
         .order('log_date', { ascending: false }),
+      supabase
+        .from('hyperdrive_events')
+        .select('log_date')
+        .eq('user_id', userId)
+        .order('log_date', { ascending: false }),
     ])
 
     // A newer load started (today changed, remount, etc.) — drop this result
@@ -314,6 +334,9 @@ export function useChallenge() {
 
     setExceptionDates(
       ((exceptionRes.data ?? []) as { log_date: string }[]).map(r => r.log_date),
+    )
+    setHyperdriveDates(
+      ((hyperRes.data ?? []) as { log_date: string }[]).map(r => r.log_date),
     )
 
     const windowStart = caveatWindowStart(today)
@@ -481,6 +504,7 @@ export function useChallenge() {
       setAdvancedTo(null)
       setFailedDay(null)
       setSabbathThisWeek(null)
+      setHyperdriveDates([])
       setStreak(prev =>
         prev
           ? { ...prev, current_day: 0, last_perfect_date: null, streak_start_date: null, failed_day: null, advanced_to: null }
@@ -879,6 +903,7 @@ export function useChallenge() {
     setAdvancedTo(null)
     setFailedDay(null)
     setSabbathThisWeek(null)
+    setHyperdriveDates([])
 
     await loadData()
   }, [user, loadData])
@@ -976,6 +1001,106 @@ export function useChallenge() {
     setSabbathThisWeek(today)
     setJustCompleted(true)
   }, [user, streak, sabbathThisWeek, displayDay.completedToday, topTwelve, today, yesterday])
+
+  const hyperdriveStatus = useMemo((): HyperDriveStatus => {
+    const weekStart = weekStartStr(today)
+    const usedThisWeek = hyperdriveDates.filter(d => d >= weekStart && d <= today).length
+    const remaining = Math.max(0, MAX_HYPERDRIVE_PER_WEEK - usedThisWeek)
+    const todayIsHyperDrive = todayLog?.is_hyperdrive === true
+    const canUseToday =
+      remaining > 0 &&
+      !displayDay.completedToday &&
+      todayLog?.is_exception !== true &&
+      topTwelve.length > 0
+    return {
+      used: usedThisWeek,
+      remaining,
+      max: MAX_HYPERDRIVE_PER_WEEK,
+      canUseToday,
+      todayIsHyperDrive,
+    }
+  }, [hyperdriveDates, today, todayLog, displayDay.completedToday, topTwelve.length])
+
+  const takeHyperDrive = useCallback(
+    async (note: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!user || !streak) {
+        return { ok: false, error: 'You must be signed in.' }
+      }
+      if (displayDay.completedToday) {
+        return { ok: false, error: 'Today is already complete.' }
+      }
+      if (topTwelve.length === 0) {
+        return { ok: false, error: 'Lock in your daily habits first.' }
+      }
+      const weekStart = weekStartStr(today)
+      const usedThisWeek = hyperdriveDates.filter(d => d >= weekStart && d <= today).length
+      if (usedThisWeek >= MAX_HYPERDRIVE_PER_WEEK) {
+        return {
+          ok: false,
+          error: `You've used both Hyper Drives this week. Resets Sunday.`,
+        }
+      }
+
+      const { error: eventError } = await supabase.from('hyperdrive_events').insert({
+        user_id: user.id,
+        log_date: today,
+        note: note.trim() || null,
+      })
+      if (eventError) {
+        return { ok: false, error: 'Could not save Hyper Drive. Please try again.' }
+      }
+      setHyperdriveDates(prev => [...prev, today])
+
+      const allIds = topTwelve.map(i => i.id)
+      const { data: logData } = await supabase
+        .from('daily_logs')
+        .upsert(
+          {
+            user_id: user.id,
+            log_date: today,
+            completed_item_ids: allIds,
+            all_completed: true,
+            is_hyperdrive: true,
+          },
+          { onConflict: 'user_id,log_date' },
+        )
+        .select()
+        .single()
+
+      if (logData) {
+        const log = logData as DailyLog
+        setTodayLog(log)
+        todayLogRef.current = log
+      }
+
+      const newDay =
+        streak.last_perfect_date === yesterday ? streak.current_day + 1 : 1
+      const { data: updatedStreak } = await supabase
+        .from('streaks')
+        .update({
+          current_day: newDay,
+          last_perfect_date: today,
+          streak_start_date:
+            streak.last_perfect_date === yesterday
+              ? streak.streak_start_date
+              : today,
+          failed_day: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (updatedStreak) {
+        setStreak(updatedStreak as Streak)
+        streakRef.current = updatedStreak as Streak
+      }
+      setFailedDay(null)
+      setJustCompleted(true)
+      return { ok: true }
+    },
+    [user, streak, displayDay.completedToday, topTwelve, today, yesterday, hyperdriveDates],
+  )
 
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
@@ -1088,6 +1213,8 @@ export function useChallenge() {
     advanceDay,
     sabbathStatus,
     takeSabbath,
+    hyperdriveStatus,
+    takeHyperDrive,
     reload: loadData,
   }
 }
