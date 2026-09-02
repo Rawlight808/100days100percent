@@ -18,9 +18,9 @@ on Vercel.
 
 - **Streaks** with automatic day rollover and missed-day detection.
 - **Sabbath** — one rest day per calendar week, unlocked after 3 perfect days.
-- **Caveats** — attach a temporary exception to a rule. One per calendar week
-  (resets Sunday); it deactivates automatically when the week is over. Synced
-  across devices.
+- **Caveats** — attach a temporary exception to a rule. You earn one each
+  Sunday; unused ones bank and carry over. An attached caveat deactivates
+  automatically when the week is over. Synced across devices.
 - **Exceptions** — a rare, whole-day exemption for circumstances outside your
   control (sickness, family emergency, extreme work day, all-day travel).
   Freezes the streak: the day doesn't count toward the 100, but you don't

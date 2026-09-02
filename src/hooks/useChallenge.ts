@@ -5,6 +5,7 @@ import {
   DAY_ROLLOVER_HOUR,
   addDaysToDateStr,
   calendarToday,
+  computeCaveatAllowance,
   naturalToday,
   projectedFinishDate,
   weekStartStr,
@@ -40,7 +41,7 @@ export interface DailyLog {
 /** Days of perfect completion required before the sabbath unlocks. */
 export const SABBATH_UNLOCK_DAY = 3
 
-/** A caveat is a spent exception: one per calendar week, no rollover. */
+/** Caveats earned per calendar week. Unused ones bank and carry forward. */
 export const MAX_CAVEATS_PER_WINDOW = 1
 /** Days in the caveat week (used to compute when the next week begins). */
 export const CAVEAT_WINDOW_DAYS = 7
@@ -107,9 +108,9 @@ export interface Streak {
 export type Phase = 'loading' | 'setup' | 'select' | 'ready' | 'failed'
 
 /**
- * Start of the caveat week (the Sunday on/before `today`), as a challenge-day
- * string. A caveat counts toward the allowance — and stays active — only while
- * it was added on or after this date. It auto-deactivates once the week rolls.
+ * Start of the caveat week (the Sunday on/before `today`). An attached caveat
+ * stays active only if it was added on or after this date; it auto-deactivates
+ * once the week rolls. Unused weekly grants still bank across weeks.
  */
 function caveatWindowStart(today: string): string {
   return weekStartStr(today)
@@ -342,8 +343,14 @@ export function useChallenge() {
     const windowStart = caveatWindowStart(today)
     const caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
 
-    // Allowance is spent by adds within the rolling window (no rollover).
-    setCaveatLog(caveatRows.filter(r => r.log_date >= windowStart).map(r => r.log_date))
+    // Keep every spend from the Sunday of this run so unused weekly grants bank.
+    const streakStart = streakRes.data
+      ? ((streakRes.data as Streak).streak_start_date ?? null)
+      : null
+    const spendOrigin = streakStart ? weekStartStr(streakStart) : windowStart
+    setCaveatLog(
+      caveatRows.filter(r => r.log_date >= spendOrigin).map(r => r.log_date),
+    )
 
     let loadedItems = (itemsRes.data ?? []) as Item[]
 
@@ -489,6 +496,8 @@ export function useChallenge() {
         .order('position')
       if (data) setItems(data as Item[])
 
+      await supabase.from('caveat_events').delete().eq('user_id', user.id)
+
       await supabase
         .from('streaks')
         .update({
@@ -505,6 +514,7 @@ export function useChallenge() {
       setFailedDay(null)
       setSabbathThisWeek(null)
       setHyperdriveDates([])
+      setCaveatLog([])
       setStreak(prev =>
         prev
           ? { ...prev, current_day: 0, last_perfect_date: null, streak_start_date: null, failed_day: null, advanced_to: null }
@@ -664,21 +674,23 @@ export function useChallenge() {
   )
 
   const caveatStatus = useMemo((): CaveatStatus => {
-    const windowStart = caveatWindowStart(today)
-    const inWindow = caveatLog.filter(d => d >= windowStart)
-    const used = inWindow.length
-    const remaining = Math.max(0, MAX_CAVEATS_PER_WINDOW - used)
+    const allowance = computeCaveatAllowance(
+      streak?.streak_start_date,
+      today,
+      caveatLog,
+      MAX_CAVEATS_PER_WINDOW,
+    )
     return {
-      used,
-      remaining,
-      canAdd: remaining > 0,
-      max: MAX_CAVEATS_PER_WINDOW,
+      used: allowance.used,
+      remaining: allowance.remaining,
+      canAdd: allowance.canAdd,
+      max: allowance.earned,
       windowDays: CAVEAT_WINDOW_DAYS,
-      // The allowance refreshes (and any active caveat deactivates) next Sunday.
-      nextAvailable:
-        remaining > 0 ? null : addDaysToDateStr(windowStart, CAVEAT_WINDOW_DAYS),
+      nextAvailable: allowance.remaining > 0
+        ? null
+        : addDaysToDateStr(caveatWindowStart(today), CAVEAT_WINDOW_DAYS),
     }
-  }, [caveatLog, today])
+  }, [caveatLog, today, streak?.streak_start_date])
 
   const exceptionsUsedThisRun = useMemo(() => {
     const runStart = streak?.streak_start_date ?? null
@@ -832,14 +844,18 @@ export function useChallenge() {
       // an existing caveat, or removing one, is always free.
       const isNewCaveat = value !== null && !hadCaveat
 
-      const windowStart = caveatWindowStart(today)
-      const inWindow = caveatLog.filter(d => d >= windowStart)
+      const allowance = computeCaveatAllowance(
+        streak?.streak_start_date,
+        today,
+        caveatLog,
+        MAX_CAVEATS_PER_WINDOW,
+      )
 
-      if (isNewCaveat && inWindow.length >= MAX_CAVEATS_PER_WINDOW) {
-        const noun = MAX_CAVEATS_PER_WINDOW === 1 ? 'caveat' : 'caveats'
+      if (isNewCaveat && !allowance.canAdd) {
         return {
           ok: false,
-          error: `You can only use ${MAX_CAVEATS_PER_WINDOW} ${noun} per week. It deactivates automatically when the week is over (resets Sunday).`,
+          error:
+            'No caveats banked. You earn one each Sunday — unused ones carry over.',
         }
       }
 
@@ -863,7 +879,7 @@ export function useChallenge() {
 
       return { ok: true }
     },
-    [user, items, caveatLog, today],
+    [user, items, caveatLog, today, streak?.streak_start_date],
   )
 
   const reorderItems = useCallback(
@@ -885,8 +901,9 @@ export function useChallenge() {
     if (!user) return
     await supabase
       .from('items')
-      .update({ is_top_twelve: false })
+      .update({ is_top_twelve: false, caveat: null })
       .eq('user_id', user.id)
+    await supabase.from('caveat_events').delete().eq('user_id', user.id)
     await clearLogsPreservingJournals(user.id)
     await supabase
       .from('streaks')

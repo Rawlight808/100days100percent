@@ -67,6 +67,48 @@ export function weekStartStr(dateStr: string): string {
   return toDateStr(date)
 }
 
+/** Whole calendar days from `from` to `to` (local dates, not UTC). */
+export function daysBetween(from: string, to: string): number {
+  const [y1, m1, d1] = from.split('-').map(Number)
+  const [y2, m2, d2] = to.split('-').map(Number)
+  const a = new Date(y1, m1 - 1, d1).getTime()
+  const b = new Date(y2, m2 - 1, d2).getTime()
+  return Math.round((b - a) / 86_400_000)
+}
+
+/**
+ * How many caveat-earning weeks have elapsed from `startDate` through `today`,
+ * inclusive. A new week starts Sunday. Before the run starts, counts as 1.
+ */
+export function caveatWeeksEarned(
+  startDate: string | null | undefined,
+  today: string,
+): number {
+  const origin = startDate && startDate <= today ? startDate : today
+  const weeks = Math.floor(daysBetween(weekStartStr(origin), weekStartStr(today)) / 7) + 1
+  return Math.max(1, weeks)
+}
+
+/**
+ * Banked caveat allowance for a run. One grant per calendar week from the
+ * Sunday of the start week through this week; unused grants carry forward.
+ * Spends are counted from that same Sunday so a caveat used while picking
+ * still spends the first week's grant after lock-in.
+ */
+export function computeCaveatAllowance(
+  startDate: string | null | undefined,
+  today: string,
+  eventDates: string[],
+  grantPerWeek = 1,
+): { used: number; earned: number; remaining: number; canAdd: boolean } {
+  const windowStart = weekStartStr(today)
+  const origin = startDate ? weekStartStr(startDate) : windowStart
+  const used = eventDates.filter(d => d >= origin).length
+  const earned = caveatWeeksEarned(startDate ?? today, today) * grantPerWeek
+  const remaining = Math.max(0, earned - used)
+  return { used, earned, remaining, canAdd: remaining > 0 }
+}
+
 export function hoursUntilRollover(): number {
   const now = new Date()
   const rollover = new Date(now)

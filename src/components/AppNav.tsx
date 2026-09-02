@@ -86,6 +86,15 @@ export function AppNav({
             </div>
 
             <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Caveats</h3>
+              <ul className="app-nav__rules-list">
+                <li>Attach a temporary exception to one rule on your list.</li>
+                <li>You earn one caveat each Sunday. Unused caveats bank and carry over.</li>
+                <li>An attached caveat deactivates automatically when the week is over.</li>
+              </ul>
+            </div>
+
+            <div className="app-nav__menu-section">
               <h3 className="app-nav__menu-heading">Sabbath</h3>
               <ul className="app-nav__rules-list">
                 <li>One day of rest per calendar week (Sunday through Saturday).</li>

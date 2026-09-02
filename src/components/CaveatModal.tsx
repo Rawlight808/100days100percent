@@ -9,9 +9,9 @@ interface CaveatModalProps {
   onSave: (caveat: string) => void | Promise<void> | SaveResult | Promise<SaveResult>
   onRemove?: () => void | Promise<void> | SaveResult | Promise<SaveResult>
   onClose: () => void
-  /** How many new caveats remain this week. */
+  /** How many banked caveats remain. */
   remaining?: number
-  /** Total caveats allowed per week (for messaging). */
+  /** Total caveats earned so far this run (for messaging). */
   max?: number
 }
 
@@ -101,8 +101,8 @@ export function CaveatModal({
         {isNew && remaining != null && (
           <p className="caveat-modal__allowance">
             {outOfAllowance
-              ? `No caveats left this week — you get ${max ?? remaining} per week. Resets Sunday.`
-              : `${remaining} caveat${remaining === 1 ? '' : 's'} left this week. It deactivates automatically when the week is over (resets Sunday).`}
+              ? 'No caveats banked. You earn one each Sunday — unused ones carry over.'
+              : `${remaining} caveat${remaining === 1 ? '' : 's'} banked${max != null ? ` (${max} earned)` : ''}. You earn one each Sunday; unused ones carry over. An attached caveat still expires at the end of the week.`}
           </p>
         )}
 
