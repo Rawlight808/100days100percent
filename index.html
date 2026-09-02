@@ -13,8 +13,9 @@
     <meta name="description" content="A 100-day, all-or-nothing daily habit challenge. Miss one day and you start over." />
     <link rel="manifest" href="/manifest.webmanifest" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Favicon: cache-bust so browsers drop the old Vite bolt -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg?v=3" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png?v=3" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" sizes="180x180" />
     <meta name="apple-mobile-web-app-title" content="100" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
