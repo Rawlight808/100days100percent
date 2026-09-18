@@ -75,7 +75,11 @@ export function AppNav({
             <div className="app-nav__menu-section">
               <h3 className="app-nav__menu-heading">The Rules</h3>
               <ol className="app-nav__rules-list">
-                <li>All items must be completed every day or you start over from Day 1.</li>
+                <li>
+                  Define where you want to be in 100 days, then write 100 things
+                  that get you there — including what to stop.
+                </li>
+                <li>All daily habits must be completed every day or you start over from Day 1.</li>
                 <li>
                   Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. Miss one day and
                   your progress resets.

@@ -63,18 +63,22 @@ export function AuthPage() {
         <div className="auth__rules">
           <div className="auth__rule">
             <span className="auth__rule-num">1</span>
-            <span>Write 100 things that would improve your life</span>
+            <span>Define where you want to be in 100 days across life areas</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">2</span>
-            <span>Choose 10–20 that matter most</span>
+            <span>Write 100 things that get you there — including what to stop</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">3</span>
-            <span>Complete all of them every day for 100 days</span>
+            <span>Choose 10–20 that matter most</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">4</span>
+            <span>Complete all of them every day for 100 days</span>
+          </div>
+          <div className="auth__rule">
+            <span className="auth__rule-num">5</span>
             <span>Miss even one - you start over at Day 1</span>
           </div>
         </div>

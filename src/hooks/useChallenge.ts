@@ -10,6 +10,7 @@ import {
   projectedFinishDate,
   weekStartStr,
 } from '../lib/challengeDay'
+import type { GoalAreaId, ItemKind } from '../data/goalAreas'
 
 export const REQUIRED_ITEMS = 100
 /** Daily habits to track: pick between min and max for the 100-day run */
@@ -24,6 +25,18 @@ export interface Item {
   is_top_twelve: boolean
   position: number
   caveat?: string | null
+  /** Life area from guided setup (nullable for legacy lists). */
+  area?: string | null
+  /** 'do' | 'stop' from guided setup (nullable for legacy lists). */
+  kind?: ItemKind | string | null
+}
+
+export interface Goal {
+  id: string
+  user_id: string
+  area: string
+  destination: string | null
+  updated_at?: string
 }
 
 export interface DailyLog {
@@ -167,6 +180,7 @@ export function useChallenge() {
   const { user } = useAuth()
   const userId = user?.id ?? null
   const [items, setItems] = useState<Item[]>([])
+  const [goals, setGoals] = useState<Goal[]>([])
   const [todayLog, setTodayLog] = useState<DailyLog | null>(null)
   const [streak, setStreak] = useState<Streak | null>(null)
   const [loading, setLoading] = useState(true)
@@ -205,6 +219,7 @@ export function useChallenge() {
       setCaveatLog([])
       setExceptionDates([])
       setHyperdriveDates([])
+      setGoals([])
       /* eslint-enable react-hooks/set-state-in-effect */
     } else if (advancedToCache.has(userId)) {
       // Restore manual advance immediately so the first paint matches the DB
@@ -282,7 +297,8 @@ export function useChallenge() {
     const naturalYday = addDaysToDateStr(naturalNow, -1)
     const weekStart = weekStartStr(today)
 
-    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes, hyperRes] = await Promise.all([
+    const [itemsRes, logRes, streakRes, sabbathRes, caveatRes, exceptionRes, hyperRes, goalsRes] =
+      await Promise.all([
       supabase.from('items').select('*').eq('user_id', userId).order('position'),
       supabase
         .from('daily_logs')
@@ -316,6 +332,7 @@ export function useChallenge() {
         .select('log_date')
         .eq('user_id', userId)
         .order('log_date', { ascending: false }),
+      supabase.from('goals').select('*').eq('user_id', userId),
     ])
 
     // A newer load started (today changed, remount, etc.) — drop this result
@@ -339,6 +356,10 @@ export function useChallenge() {
     setHyperdriveDates(
       ((hyperRes.data ?? []) as { log_date: string }[]).map(r => r.log_date),
     )
+    // Goals are optional for older accounts / before the migration is applied.
+    if (!goalsRes.error) {
+      setGoals((goalsRes.data ?? []) as Goal[])
+    }
 
     const windowStart = caveatWindowStart(today)
     const caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
@@ -523,6 +544,208 @@ export function useChallenge() {
     },
     [user],
   )
+
+  /**
+   * Save a 100-day destination for a life area. Does not touch streak or items.
+   */
+  const upsertGoal = useCallback(
+    async (area: GoalAreaId | string, destination: string) => {
+      if (!user) return { ok: false as const, error: 'You must be signed in.' }
+      const trimmed = destination.trim()
+      const value = trimmed.length > 0 ? trimmed : null
+
+      const { data, error } = await supabase
+        .from('goals')
+        .upsert(
+          {
+            user_id: user.id,
+            area,
+            destination: value,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,area' },
+        )
+        .select()
+        .maybeSingle()
+
+      if (error) {
+        return { ok: false as const, error: 'Could not save this goal. Please try again.' }
+      }
+
+      if (data) {
+        const row = data as Goal
+        setGoals(prev => {
+          const without = prev.filter(g => g.area !== area)
+          return [...without, row]
+        })
+      } else {
+        setGoals(prev => {
+          const existing = prev.find(g => g.area === area)
+          if (existing) {
+            return prev.map(g =>
+              g.area === area ? { ...g, destination: value } : g,
+            )
+          }
+          return [
+            ...prev,
+            {
+              id: `${user.id}-${area}`,
+              user_id: user.id,
+              area,
+              destination: value,
+            },
+          ]
+        })
+      }
+      return { ok: true as const }
+    },
+    [user],
+  )
+
+  /** Add one item during guided setup. Caps at REQUIRED_ITEMS. */
+  const addSetupItem = useCallback(
+    async (opts: {
+      text: string
+      area: GoalAreaId | string
+      kind: ItemKind
+    }): Promise<{ ok: boolean; error?: string; item?: Item }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const trimmed = opts.text.trim()
+      if (!trimmed) return { ok: false, error: 'Write something first.' }
+      if (items.length >= REQUIRED_ITEMS) {
+        return { ok: false, error: `You already have ${REQUIRED_ITEMS} items.` }
+      }
+
+      const position =
+        items.length === 0
+          ? 0
+          : Math.max(...items.map(i => i.position)) + 1
+
+      const { data, error } = await supabase
+        .from('items')
+        .insert({
+          user_id: user.id,
+          text: trimmed.slice(0, 200),
+          is_top_twelve: false,
+          position,
+          area: opts.area,
+          kind: opts.kind,
+        })
+        .select()
+        .single()
+
+      if (error || !data) {
+        return { ok: false, error: 'Could not add this item. Please try again.' }
+      }
+
+      const item = data as Item
+      setItems(prev => [...prev, item].sort((a, b) => a.position - b.position))
+      return { ok: true, item }
+    },
+    [user, items],
+  )
+
+  const removeSetupItem = useCallback(
+    async (itemId: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const { error } = await supabase.from('items').delete().eq('id', itemId).eq('user_id', user.id)
+      if (error) return { ok: false, error: 'Could not remove this item.' }
+      setItems(prev => prev.filter(i => i.id !== itemId))
+      return { ok: true }
+    },
+    [user],
+  )
+
+  const updateSetupItem = useCallback(
+    async (
+      itemId: string,
+      text: string,
+    ): Promise<{ ok: boolean; error?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const trimmed = text.trim()
+      if (!trimmed) return { ok: false, error: 'Write something first.' }
+
+      const { error } = await supabase
+        .from('items')
+        .update({ text: trimmed.slice(0, 200) })
+        .eq('id', itemId)
+        .eq('user_id', user.id)
+
+      if (error) return { ok: false, error: 'Could not update this item.' }
+      setItems(prev =>
+        prev.map(i => (i.id === itemId ? { ...i, text: trimmed.slice(0, 200) } : i)),
+      )
+      return { ok: true }
+    },
+    [user],
+  )
+
+  /**
+   * Finish guided setup with 100 items already saved: clear daily selection,
+   * reset the run clock, wipe caveat spends. Does not delete the 100 list.
+   */
+  const confirmSetupList = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (!user) return { ok: false, error: 'You must be signed in.' }
+    if (items.length < REQUIRED_ITEMS) {
+      return {
+        ok: false,
+        error: `You need ${REQUIRED_ITEMS} items before continuing.`,
+      }
+    }
+
+    // Keep the first 100 by position; drop any extras (shouldn't happen).
+    const ordered = [...items].sort((a, b) => a.position - b.position)
+    const keep = ordered.slice(0, REQUIRED_ITEMS)
+    const dropIds = ordered.slice(REQUIRED_ITEMS).map(i => i.id)
+    if (dropIds.length > 0) {
+      await supabase.from('items').delete().in('id', dropIds)
+    }
+
+    const renumbered = keep.map((item, i) => ({ ...item, position: i, is_top_twelve: false }))
+    await Promise.all(
+      renumbered.map(item =>
+        supabase
+          .from('items')
+          .update({ position: item.position, is_top_twelve: false })
+          .eq('id', item.id),
+      ),
+    )
+    setItems(renumbered)
+
+    await clearLogsPreservingJournals(user.id)
+    await supabase.from('caveat_events').delete().eq('user_id', user.id)
+    await supabase
+      .from('streaks')
+      .update({
+        current_day: 0,
+        last_perfect_date: null,
+        streak_start_date: null,
+        failed_day: null,
+        advanced_to: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('user_id', user.id)
+
+    setAdvancedTo(null)
+    setFailedDay(null)
+    setSabbathThisWeek(null)
+    setHyperdriveDates([])
+    setCaveatLog([])
+    setStreak(prev =>
+      prev
+        ? {
+            ...prev,
+            current_day: 0,
+            last_perfect_date: null,
+            streak_start_date: null,
+            failed_day: null,
+            advanced_to: null,
+          }
+        : prev,
+    )
+
+    return { ok: true }
+  }, [user, items])
 
   const saveTopTwelve = useCallback(
     async (selectedIds: string[]) => {
@@ -1200,6 +1423,7 @@ export function useChallenge() {
 
   return {
     items,
+    goals,
     topTwelve,
     today,
     todayLog,
@@ -1213,6 +1437,11 @@ export function useChallenge() {
     setJustCompleted,
     failedDay,
     saveItems,
+    confirmSetupList,
+    upsertGoal,
+    addSetupItem,
+    removeSetupItem,
+    updateSetupItem,
     saveTopTwelve,
     updateItemText,
     updateItemCaveat,

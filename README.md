@@ -9,13 +9,18 @@ on Vercel.
 
 ## How it works
 
-1. **Setup** — write 100 things that would improve your life.
-2. **Select** — choose 10–20 of them as your daily list.
-3. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
+1. **Goals** — walk every life area (money, health, fitness, diet, relationships,
+   education, faith, craft, and other). Say where you want to be in 100 days,
+   then answer questions that uncover things to do and things to stop.
+2. **100 list** — those answers become your 100 items.
+3. **Select** — choose 10–20 of them as your daily list.
+4. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
    local time. Miss a day and your streak resets to Day 1.
 
 ### Features
 
+- **Guided setup** — destinations and question prompts per life area, with
+  tap-to-add examples for fitness and diet.
 - **Streaks** with automatic day rollover and missed-day detection.
 - **Sabbath** — one rest day per calendar week, unlocked after 3 perfect days.
 - **Caveats** — attach a temporary exception to a rule. You earn one each
@@ -67,6 +72,9 @@ SQL migrations live in `supabase/migrations/` and are applied in numeric order.
 Run each new migration in your Supabase project's SQL editor (or via the
 Supabase CLI). Tables use row-level security so each user can only read and
 write their own rows.
+
+Guided setup needs `012_goals.sql` (`goals` table plus `items.area` /
+`items.kind`). Apply it in the SQL editor if you have not already.
 
 ## Scripts
 

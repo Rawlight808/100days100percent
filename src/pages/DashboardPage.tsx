@@ -1,10 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { useChallenge, REQUIRED_DAYS } from '../hooks/useChallenge'
 import { useCompletionSound } from '../hooks/useCompletionSound'
 import { useDeadlineNotifications } from '../hooks/useDeadlineNotifications'
 import { getDailyMessage } from '../data/dailyMessages'
+import { GOAL_AREAS } from '../data/goalAreas'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import { CaveatModal } from '../components/CaveatModal'
@@ -20,6 +21,7 @@ export function DashboardPage() {
   const { user } = useAuth()
   const {
     topTwelve,
+    goals,
     today,
     todayLog,
     displayDay,
@@ -69,6 +71,14 @@ export function DashboardPage() {
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({})
   const [viewingDate, setViewingDate] = useState<string | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
+
+  const destinations = useMemo(() => {
+    return GOAL_AREAS.map(area => {
+      const dest = goals.find(g => g.area === area.id)?.destination?.trim()
+      if (!dest) return null
+      return { id: area.id, title: area.title, destination: dest }
+    }).filter(Boolean) as { id: string; title: string; destination: string }[]
+  }, [goals])
 
   useEffect(() => {
     let cancelled = false
@@ -228,6 +238,20 @@ export function DashboardPage() {
       <p className="dashboard__daily-msg">
         {getDailyMessage(displayDay.day)}
       </p>
+
+      {destinations.length > 0 && (
+        <section className="dashboard__goals" aria-label="100-day destinations">
+          <h2 className="dashboard__goals-title">Where you wanted to be in 100 days</h2>
+          <ul className="dashboard__goals-list">
+            {destinations.map(d => (
+              <li key={d.id} className="dashboard__goals-item">
+                <span className="dashboard__goals-area">{d.title}</span>
+                <span className="dashboard__goals-dest">{d.destination}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="dashboard__progress-section">
         <div className="dashboard__progress-label">
