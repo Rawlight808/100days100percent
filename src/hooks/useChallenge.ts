@@ -198,6 +198,8 @@ export function useChallenge() {
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
   const loadSeqRef = useRef(0)
+  const itemsRef = useRef<Item[]>([])
+  itemsRef.current = items
 
   const [advancedTo, setAdvancedToState] = useState<string | null>(() =>
     userId && advancedToCache.has(userId) ? (advancedToCache.get(userId) ?? null) : null,
@@ -631,14 +633,15 @@ export function useChallenge() {
       if (!user) return { ok: false, error: 'You must be signed in.' }
       const trimmed = opts.text.trim()
       if (!trimmed) return { ok: false, error: 'Write something first.' }
-      if (items.length >= REQUIRED_ITEMS) {
+      const current = itemsRef.current
+      if (current.length >= REQUIRED_ITEMS) {
         return { ok: false, error: `You already have ${REQUIRED_ITEMS} items.` }
       }
 
       const position =
-        items.length === 0
+        current.length === 0
           ? 0
-          : Math.max(...items.map(i => i.position)) + 1
+          : Math.max(...current.map(i => i.position)) + 1
 
       const { data, error } = await supabase
         .from('items')
@@ -659,10 +662,14 @@ export function useChallenge() {
       }
 
       const item = data as Item
-      setItems(prev => [...prev, item].sort((a, b) => a.position - b.position))
+      setItems(prev => {
+        const next = [...prev, item].sort((a, b) => a.position - b.position)
+        itemsRef.current = next
+        return next
+      })
       return { ok: true, item }
     },
-    [user, items],
+    [user],
   )
 
   const removeSetupItem = useCallback(

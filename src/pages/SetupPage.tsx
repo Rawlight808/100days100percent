@@ -149,25 +149,37 @@ export function SetupPage() {
     draftKey?: string,
   ) => {
     setError(null)
-    const trimmed = text.trim()
-    if (!trimmed) return
-    if (atCap) {
+    const lines = text
+      .split('\n')
+      .map(l => l.trim())
+      .filter(Boolean)
+    if (lines.length === 0) return
+    if (itemCount >= REQUIRED_ITEMS) {
       setError(`You already have ${REQUIRED_ITEMS} items. Remove some to add more.`)
       return
     }
+
     setBusy(true)
-    const result = await addSetupItem({
-      text: trimmed,
-      area: area.id,
-      kind,
-      goalId,
-    })
-    setBusy(false)
-    if (!result.ok) {
-      setError(result.error ?? 'Could not add this item.')
-      return
+    let added = 0
+    for (const line of lines) {
+      if (itemCount + added >= REQUIRED_ITEMS) {
+        setError(`Added ${added}. You are at ${REQUIRED_ITEMS} — remove some to add more.`)
+        break
+      }
+      const result = await addSetupItem({
+        text: line,
+        area: area.id,
+        kind,
+        goalId,
+      })
+      if (!result.ok) {
+        setError(result.error ?? 'Could not add this item.')
+        break
+      }
+      added += 1
     }
-    if (draftKey) {
+    setBusy(false)
+    if (added > 0 && draftKey) {
       if (draftKey.startsWith('hundred:')) {
         setHundredDrafts(prev => ({ ...prev, [goalId]: '' }))
       } else {
@@ -428,27 +440,26 @@ export function SetupPage() {
                 <span className="setup__kind setup__kind--do">Do</span>
                 {HUNDRED_DAYS_PROMPT}
               </p>
-              <div className="setup__add-row">
-                <input
-                  className="setup__add-input"
+              <div className="setup__add-row setup__add-row--stack">
+                <textarea
+                  className="setup__add-input setup__add-input--area"
                   value={hundredDrafts[g.id] ?? ''}
                   onChange={e =>
                     setHundredDrafts(prev => ({ ...prev, [g.id]: e.target.value }))
                   }
                   onKeyDown={e => {
-                    if (e.key === 'Enter') {
+                    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                       e.preventDefault()
                       void handleAdd(hundredDrafts[g.id] ?? '', 'do', g.id, hundredKey)
                     }
                   }}
-                  placeholder="Add one 100-day action, press Enter"
-                  maxLength={200}
-                  disabled={busy || atCap}
+                  placeholder="Write the tasks — one per line"
+                  rows={4}
                 />
                 <button
                   type="button"
                   className="setup__add-btn"
-                  disabled={busy || atCap || !(hundredDrafts[g.id] ?? '').trim()}
+                  disabled={busy || !(hundredDrafts[g.id] ?? '').trim()}
                   onClick={() =>
                     void handleAdd(hundredDrafts[g.id] ?? '', 'do', g.id, hundredKey)
                   }
@@ -515,13 +526,12 @@ export function SetupPage() {
                           }}
                           placeholder="Add one item, press Enter"
                           maxLength={200}
-                          disabled={busy || atCap}
                         />
                         <button
                           type="button"
                           className="setup__add-btn"
                           disabled={
-                            busy || atCap || !(questionDrafts[qKey] ?? '').trim()
+                            busy || !(questionDrafts[qKey] ?? '').trim()
                           }
                           onClick={() =>
                             void handleAdd(

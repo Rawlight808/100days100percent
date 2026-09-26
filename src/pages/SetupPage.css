@@ -291,6 +291,15 @@
   gap: 0.5rem;
 }
 
+.setup__add-row--stack {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.setup__add-row--stack .setup__add-btn {
+  align-self: flex-end;
+}
+
 .setup__add-input {
   flex: 1;
   min-width: 0;
@@ -302,6 +311,12 @@
   font-size: 0.9rem;
   font-family: inherit;
   outline: none;
+}
+
+.setup__add-input--area {
+  resize: vertical;
+  min-height: 6rem;
+  line-height: 1.5;
 }
 
 .setup__add-input:focus {
