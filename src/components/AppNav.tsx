@@ -76,8 +76,9 @@ export function AppNav({
               <h3 className="app-nav__menu-heading">The Rules</h3>
               <ol className="app-nav__rules-list">
                 <li>
-                  Define where you want to be in 100 days, then write 100 things
-                  that get you there — including what to stop.
+                  Define where you want to be in 1 year, then write 100 things
+                  you can do in the next 100 days to get closer — including what
+                  to stop. You can have more than one goal in each life area.
                 </li>
                 <li>All daily habits must be completed every day or you start over from Day 1.</li>
                 <li>

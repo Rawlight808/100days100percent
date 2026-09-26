@@ -73,11 +73,16 @@ export function DashboardPage() {
   const [calendarOpen, setCalendarOpen] = useState(false)
 
   const destinations = useMemo(() => {
-    return GOAL_AREAS.map(area => {
-      const dest = goals.find(g => g.area === area.id)?.destination?.trim()
-      if (!dest) return null
-      return { id: area.id, title: area.title, destination: dest }
-    }).filter(Boolean) as { id: string; title: string; destination: string }[]
+    return goals
+      .filter(g => g.destination?.trim())
+      .map(g => {
+        const area = GOAL_AREAS.find(a => a.id === g.area)
+        return {
+          id: g.id,
+          title: area?.title ?? 'Other',
+          destination: g.destination!.trim(),
+        }
+      })
   }, [goals])
 
   useEffect(() => {
@@ -240,8 +245,8 @@ export function DashboardPage() {
       </p>
 
       {destinations.length > 0 && (
-        <section className="dashboard__goals" aria-label="100-day destinations">
-          <h2 className="dashboard__goals-title">Where you wanted to be in 100 days</h2>
+        <section className="dashboard__goals" aria-label="1-year destinations">
+          <h2 className="dashboard__goals-title">Where you wanted to be in 1 year</h2>
           <ul className="dashboard__goals-list">
             {destinations.map(d => (
               <li key={d.id} className="dashboard__goals-item">

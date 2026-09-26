@@ -22,16 +22,19 @@ export interface GoalQuestion {
 export interface GoalArea {
   id: GoalAreaId
   title: string
-  destinationPrompt: string
+  yearPrompt: string
   questions: GoalQuestion[]
 }
+
+export const HUNDRED_DAYS_PROMPT =
+  'What can you do in the next 100 days to bring you closer?'
 
 export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'financial',
     title: 'Financial',
-    destinationPrompt:
-      'Where would you like to be financially in 100 days? Be specific — income, savings, debt, business.',
+    yearPrompt:
+      'Where do you want to be financially in 1 year? Be specific — income, savings, debt, business.',
     questions: [
       {
         id: 'financial-business',
@@ -69,8 +72,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'health',
     title: 'Health',
-    destinationPrompt:
-      'Where would you like your health to be in 100 days? Energy, sleep, stress, recovery — name it.',
+    yearPrompt:
+      'Where do you want your health to be in 1 year? Energy, sleep, stress, recovery — name it.',
     questions: [
       {
         id: 'health-sleep',
@@ -97,8 +100,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'fitness',
     title: 'Fitness',
-    destinationPrompt:
-      'Where would you like your fitness to be in 100 days? Strength, stamina, consistency — pick a clear finish line.',
+    yearPrompt:
+      'Where do you want your fitness to be in 1 year? Strength, stamina, consistency — pick a clear finish line.',
     questions: [
       {
         id: 'fitness-cardio',
@@ -141,8 +144,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'diet',
     title: 'Diet',
-    destinationPrompt:
-      'Where would you like your diet to be in 100 days? How you eat, drink, and fuel yourself.',
+    yearPrompt:
+      'Where do you want your diet to be in 1 year? How you eat, drink, and fuel yourself.',
     questions: [
       {
         id: 'diet-add',
@@ -182,8 +185,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'relationships',
     title: 'Relationships',
-    destinationPrompt:
-      'Where would you like your relationships to be in 100 days? Partner, family, friends — who and how.',
+    yearPrompt:
+      'Where do you want your relationships to be in 1 year? Partner, family, friends — who and how.',
     questions: [
       {
         id: 'relationships-partner',
@@ -216,8 +219,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'education',
     title: 'Education',
-    destinationPrompt:
-      'Where would you like to be in learning in 100 days? Skills, reading, courses, practice.',
+    yearPrompt:
+      'Where do you want to be in learning in 1 year? Skills, reading, courses, practice.',
     questions: [
       {
         id: 'education-skills',
@@ -245,8 +248,7 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'faith',
     title: 'Relationship with God',
-    destinationPrompt:
-      'Where would you like your relationship with God to be in 100 days?',
+    yearPrompt: 'Where do you want your relationship with God to be in 1 year?',
     questions: [
       {
         id: 'faith-prayer',
@@ -280,8 +282,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'craft',
     title: 'Craft and art',
-    destinationPrompt:
-      'Where would you like your craft or art to be in 100 days? Practice, making, sharing the work.',
+    yearPrompt:
+      'Where do you want your craft or art to be in 1 year? Practice, making, sharing the work.',
     questions: [
       {
         id: 'craft-practice',
@@ -308,8 +310,8 @@ export const GOAL_AREAS: GoalArea[] = [
   {
     id: 'other',
     title: 'Other',
-    destinationPrompt:
-      'Anything else you want to be true in 100 days that did not fit above?',
+    yearPrompt:
+      'Anything else you want to be true in 1 year that did not fit above?',
     questions: [
       {
         id: 'other-do',

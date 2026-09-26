@@ -63,7 +63,7 @@ export function AuthPage() {
         <div className="auth__rules">
           <div className="auth__rule">
             <span className="auth__rule-num">1</span>
-            <span>Define where you want to be in 100 days across life areas</span>
+            <span>Define where you want to be in 1 year, then what you’ll do in the next 100 days</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">2</span>

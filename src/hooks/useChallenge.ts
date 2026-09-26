@@ -29,6 +29,8 @@ export interface Item {
   area?: string | null
   /** 'do' | 'stop' from guided setup (nullable for legacy lists). */
   kind?: ItemKind | string | null
+  /** Which 1-year goal this 100-day item belongs to. */
+  goal_id?: string | null
 }
 
 export interface Goal {
@@ -36,6 +38,7 @@ export interface Goal {
   user_id: string
   area: string
   destination: string | null
+  position?: number
   updated_at?: string
 }
 
@@ -332,7 +335,7 @@ export function useChallenge() {
         .select('log_date')
         .eq('user_id', userId)
         .order('log_date', { ascending: false }),
-      supabase.from('goals').select('*').eq('user_id', userId),
+      supabase.from('goals').select('*').eq('user_id', userId).order('position'),
     ])
 
     // A newer load started (today changed, remount, etc.) — drop this result
@@ -545,59 +548,74 @@ export function useChallenge() {
     [user],
   )
 
-  /**
-   * Save a 100-day destination for a life area. Does not touch streak or items.
-   */
-  const upsertGoal = useCallback(
-    async (area: GoalAreaId | string, destination: string) => {
+  const addGoal = useCallback(
+    async (area: GoalAreaId | string): Promise<{ ok: boolean; error?: string; goal?: Goal }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const inArea = goals.filter(g => g.area === area)
+      const position =
+        inArea.length === 0
+          ? 0
+          : Math.max(...inArea.map(g => g.position ?? 0)) + 1
+
+      const { data, error } = await supabase
+        .from('goals')
+        .insert({
+          user_id: user.id,
+          area,
+          destination: null,
+          position,
+          updated_at: new Date().toISOString(),
+        })
+        .select()
+        .single()
+
+      if (error || !data) {
+        return { ok: false, error: 'Could not add another goal. Please try again.' }
+      }
+      const goal = data as Goal
+      setGoals(prev => [...prev, goal])
+      return { ok: true, goal }
+    },
+    [user, goals],
+  )
+
+  const updateGoal = useCallback(
+    async (goalId: string, destination: string) => {
       if (!user) return { ok: false as const, error: 'You must be signed in.' }
       const trimmed = destination.trim()
       const value = trimmed.length > 0 ? trimmed : null
 
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('goals')
-        .upsert(
-          {
-            user_id: user.id,
-            area,
-            destination: value,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: 'user_id,area' },
-        )
-        .select()
-        .maybeSingle()
+        .update({ destination: value, updated_at: new Date().toISOString() })
+        .eq('id', goalId)
+        .eq('user_id', user.id)
 
       if (error) {
         return { ok: false as const, error: 'Could not save this goal. Please try again.' }
       }
-
-      if (data) {
-        const row = data as Goal
-        setGoals(prev => {
-          const without = prev.filter(g => g.area !== area)
-          return [...without, row]
-        })
-      } else {
-        setGoals(prev => {
-          const existing = prev.find(g => g.area === area)
-          if (existing) {
-            return prev.map(g =>
-              g.area === area ? { ...g, destination: value } : g,
-            )
-          }
-          return [
-            ...prev,
-            {
-              id: `${user.id}-${area}`,
-              user_id: user.id,
-              area,
-              destination: value,
-            },
-          ]
-        })
-      }
+      setGoals(prev =>
+        prev.map(g => (g.id === goalId ? { ...g, destination: value } : g)),
+      )
       return { ok: true as const }
+    },
+    [user],
+  )
+
+  const removeGoal = useCallback(
+    async (goalId: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const { error } = await supabase
+        .from('goals')
+        .delete()
+        .eq('id', goalId)
+        .eq('user_id', user.id)
+      if (error) return { ok: false, error: 'Could not remove this goal.' }
+      setGoals(prev => prev.filter(g => g.id !== goalId))
+      setItems(prev =>
+        prev.map(i => (i.goal_id === goalId ? { ...i, goal_id: null } : i)),
+      )
+      return { ok: true }
     },
     [user],
   )
@@ -608,6 +626,7 @@ export function useChallenge() {
       text: string
       area: GoalAreaId | string
       kind: ItemKind
+      goalId?: string | null
     }): Promise<{ ok: boolean; error?: string; item?: Item }> => {
       if (!user) return { ok: false, error: 'You must be signed in.' }
       const trimmed = opts.text.trim()
@@ -630,6 +649,7 @@ export function useChallenge() {
           position,
           area: opts.area,
           kind: opts.kind,
+          goal_id: opts.goalId ?? null,
         })
         .select()
         .single()
@@ -1438,7 +1458,9 @@ export function useChallenge() {
     failedDay,
     saveItems,
     confirmSetupList,
-    upsertGoal,
+    addGoal,
+    updateGoal,
+    removeGoal,
     addSetupItem,
     removeSetupItem,
     updateSetupItem,

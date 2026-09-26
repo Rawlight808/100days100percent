@@ -10,17 +10,18 @@ on Vercel.
 ## How it works
 
 1. **Goals** — walk every life area (money, health, fitness, diet, relationships,
-   education, faith, craft, and other). Say where you want to be in 100 days,
-   then answer questions that uncover things to do and things to stop.
-2. **100 list** — those answers become your 100 items.
+   education, faith, craft, and other). You can name more than one goal per
+   area. Say where you want to be in 1 year, then what you can do in the next
+   100 days to get closer — including things to stop.
+2. **100 list** — those 100-day actions become your 100 items.
 3. **Select** — choose 10–20 of them as your daily list.
 4. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
    local time. Miss a day and your streak resets to Day 1.
 
 ### Features
 
-- **Guided setup** — destinations and question prompts per life area, with
-  tap-to-add examples for fitness and diet.
+- **Guided setup** — 1-year destinations (multiple per life area) and 100-day
+  actions, with tap-to-add examples for fitness and diet.
 - **Streaks** with automatic day rollover and missed-day detection.
 - **Sabbath** — one rest day per calendar week, unlocked after 3 perfect days.
 - **Caveats** — attach a temporary exception to a rule. You earn one each
@@ -74,7 +75,8 @@ Supabase CLI). Tables use row-level security so each user can only read and
 write their own rows.
 
 Guided setup needs `012_goals.sql` (`goals` table plus `items.area` /
-`items.kind`). Apply it in the SQL editor if you have not already.
+`items.kind`) and `013_multiple_goals.sql` (more than one goal per area).
+Apply each in the SQL editor if you have not already.
 
 ## Scripts
 
