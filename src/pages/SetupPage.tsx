@@ -3,6 +3,7 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import {
   useChallenge,
   REQUIRED_ITEMS,
+  MAX_ITEMS,
   type Goal,
   type Item,
 } from '../hooks/useChallenge'
@@ -114,7 +115,7 @@ export function SetupPage() {
   }, [items])
 
   const itemCount = items.length
-  const atCap = itemCount >= REQUIRED_ITEMS
+  const atCap = itemCount >= MAX_ITEMS
   const canContinue = itemCount >= REQUIRED_ITEMS
 
   const persistYear = useCallback(
@@ -154,16 +155,16 @@ export function SetupPage() {
       .map(l => l.trim())
       .filter(Boolean)
     if (lines.length === 0) return
-    if (itemCount >= REQUIRED_ITEMS) {
-      setError(`You already have ${REQUIRED_ITEMS} items. Remove some to add more.`)
+    if (itemCount >= MAX_ITEMS) {
+      setError(`You already have ${MAX_ITEMS} items. Remove some to add more.`)
       return
     }
 
     setBusy(true)
     let added = 0
     for (const line of lines) {
-      if (itemCount + added >= REQUIRED_ITEMS) {
-        setError(`Added ${added}. You are at ${REQUIRED_ITEMS} — remove some to add more.`)
+      if (itemCount + added >= MAX_ITEMS) {
+        setError(`Added ${added}. You are at ${MAX_ITEMS} — remove some to add more.`)
         break
       }
       const result = await addSetupItem({
@@ -251,22 +252,23 @@ export function SetupPage() {
 
   if (phase === 'ready') return <Navigate to="/dashboard" replace />
 
-  const pct = Math.min(100, (itemCount / REQUIRED_ITEMS) * 100)
+  const pct = Math.min(100, (itemCount / MAX_ITEMS) * 100)
 
   if (mode === 'review') {
     return (
       <div className="setup">
         <div className="setup__header">
-          <h1 className="setup__title">Your 100 list</h1>
+          <h1 className="setup__title">Your list</h1>
           <p className="setup__subtitle">
             Review your 1-year goals and the 100-day actions under them. You need
-            exactly {REQUIRED_ITEMS} items before you choose your daily habits.
+            at least {REQUIRED_ITEMS} items (up to {MAX_ITEMS}) before you choose
+            your daily habits.
           </p>
         </div>
 
         <div className="setup__counter">
           {itemCount}
-          <span className="setup__counter-dim"> / {REQUIRED_ITEMS}</span>
+          <span className="setup__counter-dim"> / {MAX_ITEMS}</span>
           <span className="setup__counter-label">items</span>
         </div>
         <div className="setup__progress">
@@ -381,7 +383,7 @@ export function SetupPage() {
             Area {areaIndex + 1} of {GOAL_AREAS.length}
           </span>
           <span className="setup__sticky-count">
-            {itemCount} / {REQUIRED_ITEMS} items
+            {itemCount} / {MAX_ITEMS} items
           </span>
         </div>
         <div className="setup__progress setup__progress--sticky">
@@ -614,8 +616,8 @@ export function SetupPage() {
       </div>
 
       <p className="setup__draft-note">
-        Progress saves as you go. Skip an area if you want — keep going until you
-        hit {REQUIRED_ITEMS} actions.
+        Progress saves as you go. Skip an area if you want — you need at least{' '}
+        {REQUIRED_ITEMS} actions (up to {MAX_ITEMS}) to continue.
       </p>
     </div>
   )

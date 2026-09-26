@@ -67,7 +67,7 @@ export function AuthPage() {
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">2</span>
-            <span>Write 100 things that get you there — including what to stop</span>
+            <span>Write at least 100 things that get you there (up to 300) — including what to stop</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">3</span>

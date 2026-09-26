@@ -12,7 +12,10 @@ import {
 } from '../lib/challengeDay'
 import type { GoalAreaId, ItemKind } from '../data/goalAreas'
 
+/** Minimum actions required before choosing daily habits. */
 export const REQUIRED_ITEMS = 100
+/** Hard cap on the master list. */
+export const MAX_ITEMS = 300
 /** Daily habits to track: pick between min and max for the 100-day run */
 export const MIN_TOP = 10
 export const MAX_TOP = 20
@@ -622,7 +625,7 @@ export function useChallenge() {
     [user],
   )
 
-  /** Add one item during guided setup. Caps at REQUIRED_ITEMS. */
+  /** Add one item during guided setup. Caps at MAX_ITEMS. */
   const addSetupItem = useCallback(
     async (opts: {
       text: string
@@ -634,8 +637,8 @@ export function useChallenge() {
       const trimmed = opts.text.trim()
       if (!trimmed) return { ok: false, error: 'Write something first.' }
       const current = itemsRef.current
-      if (current.length >= REQUIRED_ITEMS) {
-        return { ok: false, error: `You already have ${REQUIRED_ITEMS} items.` }
+      if (current.length >= MAX_ITEMS) {
+        return { ok: false, error: `You already have ${MAX_ITEMS} items.` }
       }
 
       const position =
@@ -708,22 +711,21 @@ export function useChallenge() {
   )
 
   /**
-   * Finish guided setup with 100 items already saved: clear daily selection,
-   * reset the run clock, wipe caveat spends. Does not delete the 100 list.
+   * Finish guided setup once the minimum list is saved: clear daily selection,
+   * reset the run clock, wipe caveat spends. Does not delete the list.
    */
   const confirmSetupList = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     if (!user) return { ok: false, error: 'You must be signed in.' }
     if (items.length < REQUIRED_ITEMS) {
       return {
         ok: false,
-        error: `You need ${REQUIRED_ITEMS} items before continuing.`,
+        error: `You need at least ${REQUIRED_ITEMS} items before continuing.`,
       }
     }
 
-    // Keep the first 100 by position; drop any extras (shouldn't happen).
     const ordered = [...items].sort((a, b) => a.position - b.position)
-    const keep = ordered.slice(0, REQUIRED_ITEMS)
-    const dropIds = ordered.slice(REQUIRED_ITEMS).map(i => i.id)
+    const keep = ordered.slice(0, MAX_ITEMS)
+    const dropIds = ordered.slice(MAX_ITEMS).map(i => i.id)
     if (dropIds.length > 0) {
       await supabase.from('items').delete().in('id', dropIds)
     }

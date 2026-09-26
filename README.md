@@ -13,7 +13,8 @@ on Vercel.
    education, faith, craft, and other). You can name more than one goal per
    area. Say where you want to be in 1 year, then what you can do in the next
    100 days to get closer — including things to stop.
-2. **100 list** — those 100-day actions become your 100 items.
+2. **Master list** — those 100-day actions become your list (at least 100,
+   up to 300).
 3. **Select** — choose 10–20 of them as your daily list.
 4. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
    local time. Miss a day and your streak resets to Day 1.

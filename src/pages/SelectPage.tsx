@@ -221,8 +221,8 @@ export function SelectPage() {
     <div className="select">
       <AppNav
         onStartOver={() => navigate('/setup')}
-        startOverLabel="Edit my 100 list"
-        startOverDesc="Re-edit the full 100-item list. You'll come back here to re-pick your daily habits."
+        startOverLabel="Edit my list"
+        startOverDesc="Re-edit the full action list. You'll come back here to re-pick your daily habits."
       />
       <div className="select__header">
         <h1 className="select__title">Choose your daily habits</h1>
@@ -293,7 +293,7 @@ export function SelectPage() {
           className="select__btn select__btn--secondary"
           onClick={() => navigate('/setup')}
         >
-          Edit my 100 list
+          Edit my list
         </button>
         <p className="select__edit-note">
           If you change your list, you&apos;ll pick your daily habits again from the
