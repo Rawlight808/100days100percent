@@ -1,8 +1,9 @@
 import { useEffect, useCallback, useRef } from 'react'
 import {
-  DAY_ROLLOVER_HOUR,
   DEADLINE_WARNING_HOURS,
-  hoursUntilRollover,
+  FAIL_DEADLINE_HOUR,
+  FAIL_GRACE_WARNING_HOURS,
+  hoursUntilFailDeadline,
   naturalToday,
 } from '../lib/challengeDay'
 
@@ -23,6 +24,13 @@ function markFired(userId: string, challengeDate: string, slot: string): void {
 function showNotification(title: string, body: string) {
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
   new Notification(title, { body, icon: '/favicon.svg' })
+}
+
+function failDeadlineCopy(hoursLeft: number): string {
+  if (hoursLeft <= 1) {
+    return `Less than 1 hour left. Complete every habit by noon or your progress resets.`
+  }
+  return `${hoursLeft} hours left. Complete every habit by noon or your progress resets.`
 }
 
 export function useDeadlineNotifications(
@@ -52,6 +60,7 @@ export function useDeadlineNotifications(
       const now = new Date()
       const hour = now.getHours()
       const minute = now.getMinutes()
+      const hoursLeft = hoursUntilFailDeadline(now)
 
       if (hour === 0 && minute === 0) {
         const slot = 'midnight'
@@ -59,22 +68,20 @@ export function useDeadlineNotifications(
           markFired(userId, challengeDate, slot)
           showNotification(
             '100 Days of 100% — Day not finished',
-            `You haven't completed today's habits. Finish before ${DAY_ROLLOVER_HOUR}:00 AM or you'll start over.`,
+            `You haven't completed today's habits. You have until noon to finish or you'll start over.`,
           )
         }
       }
 
-      if (minute === 0 && (DEADLINE_WARNING_HOURS as readonly number[]).includes(hour)) {
+      const warningHours = [
+        ...(DEADLINE_WARNING_HOURS as readonly number[]),
+        ...(FAIL_GRACE_WARNING_HOURS as readonly number[]),
+      ]
+      if (minute === 0 && warningHours.includes(hour) && hour < FAIL_DEADLINE_HOUR) {
         const slot = `hour-${hour}`
         if (!wasFired(userId, challengeDate, slot)) {
           markFired(userId, challengeDate, slot)
-          const hoursLeft = hoursUntilRollover()
-          showNotification(
-            '100 Days of 100% — Time running out',
-            hoursLeft <= 1
-              ? `Less than 1 hour left. Complete every habit before ${DAY_ROLLOVER_HOUR}:00 AM or your progress resets.`
-              : `${hoursLeft} hours left. Complete every habit before ${DAY_ROLLOVER_HOUR}:00 AM or your progress resets.`,
-          )
+          showNotification('100 Days of 100% — Time running out', failDeadlineCopy(hoursLeft))
         }
       }
     }

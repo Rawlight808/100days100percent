@@ -2,15 +2,24 @@ import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../contexts/auth-context'
 import {
-  DAY_ROLLOVER_HOUR,
   addDaysToDateStr,
   calendarToday,
   computeCaveatAllowance,
+  isPastFailDeadline,
+  isSingleOvernightMiss,
+  msUntilNextChallengeClock,
   naturalToday,
   projectedFinishDate,
+  shouldHoldIncompleteDay,
   weekStartStr,
 } from '../lib/challengeDay'
 import type { GoalAreaId, ItemKind } from '../data/goalAreas'
+import {
+  appendLocalCaveatEvent,
+  clearLocalCaveatEvents,
+  isMissingCaveatEventsTable,
+  readLocalCaveatEvents,
+} from '../lib/caveatEventsLocal'
 
 /** Minimum actions required before choosing daily habits. */
 export const REQUIRED_ITEMS = 100
@@ -169,6 +178,7 @@ function isStreakBroken(
   natural: string,
   naturalYesterday: string,
   activeChallenge: boolean,
+  now = new Date(),
 ): boolean {
   if (!activeChallenge) return false
   // The run does not start until daily habits are locked in.
@@ -176,7 +186,20 @@ function isStreakBroken(
   const pastFirstDay = natural > streak.streak_start_date
   const missedPreviousDay = streak.last_perfect_date !== naturalYesterday
   const notCompletedToday = streak.last_perfect_date !== natural
-  return pastFirstDay && missedPreviousDay && notCompletedToday
+  if (!(pastFirstDay && missedPreviousDay && notCompletedToday)) return false
+  // One forgotten night: keep the checklist until noon. Longer gaps fail now.
+  if (
+    isSingleOvernightMiss(
+      streak.last_perfect_date,
+      streak.streak_start_date,
+      natural,
+      naturalYesterday,
+    ) &&
+    !isPastFailDeadline(now)
+  ) {
+    return false
+  }
+  return true
 }
 
 /** Survive route remounts so "Start Day N+1" doesn't briefly fall back to natural. */
@@ -241,6 +264,17 @@ export function useChallenge() {
   const today = useMemo(() => {
     const natural = naturalToday()
     const calendar = calendarToday()
+    // Forgotten last night: stay on that checklist until noon instead of
+    // flipping to an empty new day and then failing.
+    if (
+      shouldHoldIncompleteDay(
+        streak?.last_perfect_date,
+        streak?.streak_start_date,
+        natural,
+      )
+    ) {
+      return addDaysToDateStr(natural, -1)
+    }
     // Manual advance is capped at one day ahead of the natural day, so
     // "Start Day N+1" can't be chained to skip through the challenge.
     const manual =
@@ -257,6 +291,15 @@ export function useChallenge() {
     const candidates = [natural, manual, autoRolled].filter(Boolean) as string[]
     return candidates.reduce((a, b) => (a > b ? a : b))
   }, [advancedTo, streak])
+
+  const failGraceActive = useMemo(() => {
+    const natural = naturalToday()
+    return shouldHoldIncompleteDay(
+      streak?.last_perfect_date,
+      streak?.streak_start_date,
+      natural,
+    )
+  }, [streak])
 
   const yesterday = useMemo(() => addDaysToDateStr(today, -1), [today])
 
@@ -296,7 +339,8 @@ export function useChallenge() {
   const loadData = useCallback(async () => {
     if (!userId) return
     const seq = ++loadSeqRef.current
-    setLoading(true)
+    // Avoid a loading flash when today shifts onto yesterday's held checklist.
+    if (itemsRef.current.length === 0) setLoading(true)
     setLoadError(false)
 
     // Always re-read the natural clock inside the fetch — `today` may be the
@@ -370,7 +414,33 @@ export function useChallenge() {
     }
 
     const windowStart = caveatWindowStart(today)
-    const caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
+    let caveatRows = (caveatRes.data ?? []) as { log_date: string; item_id: string | null }[]
+    if (caveatRes.error) {
+      // Table missing (PGRST205) or a transient read failure — keep any local spends
+      // so the bank does not reset to "1 remaining" after a failed remote insert.
+      caveatRows = readLocalCaveatEvents(userId)
+    } else {
+      const localRows = readLocalCaveatEvents(userId)
+      if (localRows.length > 0) {
+        const seen = new Set(caveatRows.map(r => `${r.item_id ?? ''}:${r.log_date}`))
+        const toInsert = localRows.filter(r => !seen.has(`${r.item_id ?? ''}:${r.log_date}`))
+        if (toInsert.length > 0) {
+          const { error: migrateError } = await supabase.from('caveat_events').insert(
+            toInsert.map(r => ({
+              user_id: userId,
+              item_id: r.item_id,
+              log_date: r.log_date,
+            })),
+          )
+          if (!migrateError) {
+            caveatRows = [...caveatRows, ...toInsert]
+            clearLocalCaveatEvents(userId)
+          }
+        } else {
+          clearLocalCaveatEvents(userId)
+        }
+      }
+    }
 
     // Keep every spend from the Sunday of this run so unused weekly grants bank.
     const streakStart = streakRes.data
@@ -410,10 +480,6 @@ export function useChallenge() {
 
     setItems(loadedItems)
 
-    const log = logRes.data as DailyLog | null
-    setTodayLog(log)
-    todayLogRef.current = log
-
     let s = streakRes.data as Streak | null
     const topCount = loadedItems.filter(i => i.is_top_twelve).length
     const activeChallenge = topCount >= MIN_TOP && topCount <= MAX_TOP
@@ -428,7 +494,30 @@ export function useChallenge() {
       s = data as Streak
     }
 
-    if (s && activeChallenge && s.current_day === 0 && s.last_perfect_date == null) {
+    let log = logRes.data as DailyLog | null
+    const holdingYesterday =
+      !!s &&
+      shouldHoldIncompleteDay(s.last_perfect_date, s.streak_start_date, naturalNow)
+    if (holdingYesterday && today !== naturalYday) {
+      const heldLogRes = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('log_date', naturalYday)
+        .maybeSingle()
+      if (seq !== loadSeqRef.current) return
+      log = heldLogRes.data as DailyLog | null
+    }
+    setTodayLog(log)
+    todayLogRef.current = log
+
+    if (
+      s &&
+      activeChallenge &&
+      s.current_day === 0 &&
+      s.last_perfect_date == null &&
+      (s.streak_start_date == null || s.streak_start_date === naturalNow)
+    ) {
       // Habits are locked in but no counted day has happened yet. The 100-day
       // clock starts on this first real challenge day — not on earlier visits
       // spent writing or picking the list.
@@ -493,15 +582,10 @@ export function useChallenge() {
   }, [loadData])
 
   useEffect(() => {
-    const now = new Date()
-    const next = new Date(now)
-    next.setHours(DAY_ROLLOVER_HOUR, 0, 0, 0)
-    if (next <= now) next.setDate(next.getDate() + 1)
-    const msUntilRollover = next.getTime() - now.getTime()
-
+    const ms = msUntilNextChallengeClock()
     const timer = setTimeout(() => {
       loadData()
-    }, msUntilRollover + 1000)
+    }, ms + 1000)
 
     return () => clearTimeout(timer)
   }, [loadData, today])
@@ -526,6 +610,7 @@ export function useChallenge() {
       if (data) setItems(data as Item[])
 
       await supabase.from('caveat_events').delete().eq('user_id', user.id)
+      clearLocalCaveatEvents(user.id)
 
       await supabase
         .from('streaks')
@@ -743,6 +828,7 @@ export function useChallenge() {
 
     await clearLogsPreservingJournals(user.id)
     await supabase.from('caveat_events').delete().eq('user_id', user.id)
+    clearLocalCaveatEvents(user.id)
     await supabase
       .from('streaks')
       .update({
@@ -1111,19 +1197,50 @@ export function useChallenge() {
         }
       }
 
+      let usedLocalFallback = false
       if (isNewCaveat) {
-        // Record the allowance spend first so it syncs across devices. If this
-        // fails we abort rather than silently granting a free caveat.
+        // Record the allowance spend first so it syncs across devices. If the
+        // remote table is missing, keep the spend locally so Save still works
+        // and the bank does not reset on reload.
         const { error: eventError } = await supabase
           .from('caveat_events')
           .insert({ user_id: user.id, item_id: itemId, log_date: today })
         if (eventError) {
-          return { ok: false, error: 'Could not save this caveat. Please try again.' }
+          if (!isMissingCaveatEventsTable(eventError)) {
+            return {
+              ok: false,
+              error: eventError.message || 'Could not save this caveat. Please try again.',
+            }
+          }
+          usedLocalFallback = true
+        }
+      }
+
+      const { error: itemError } = await supabase
+        .from('items')
+        .update({ caveat: value })
+        .eq('id', itemId)
+      if (itemError) {
+        if (isNewCaveat && !usedLocalFallback) {
+          await supabase
+            .from('caveat_events')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('item_id', itemId)
+            .eq('log_date', today)
+        }
+        return {
+          ok: false,
+          error: itemError.message || 'Could not save this caveat. Please try again.',
+        }
+      }
+
+      if (isNewCaveat) {
+        if (usedLocalFallback) {
+          appendLocalCaveatEvent(user.id, { item_id: itemId, log_date: today })
         }
         setCaveatLog(prev => [...prev, today])
       }
-
-      await supabase.from('items').update({ caveat: value }).eq('id', itemId)
 
       setItems(prev =>
         prev.map(item => (item.id === itemId ? { ...item, caveat: value } : item)),
@@ -1156,6 +1273,7 @@ export function useChallenge() {
       .update({ is_top_twelve: false, caveat: null })
       .eq('user_id', user.id)
     await supabase.from('caveat_events').delete().eq('user_id', user.id)
+    clearLocalCaveatEvents(user.id)
     await clearLogsPreservingJournals(user.id)
     await supabase
       .from('streaks')
@@ -1458,6 +1576,7 @@ export function useChallenge() {
     todayLog,
     streak,
     displayDay,
+    failGraceActive,
     phase,
     loading,
     loadError,

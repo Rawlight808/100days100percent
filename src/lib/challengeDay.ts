@@ -1,8 +1,17 @@
 /** Challenge day rolls at 4:00 AM local. */
 export const DAY_ROLLOVER_HOUR = 4
 
+/**
+ * A missed checklist does not fail the run until this local hour on the
+ * following calendar day (12 = noon). Completed days still roll at 4:00 AM.
+ */
+export const FAIL_DEADLINE_HOUR = 12
+
 /** Hourly warnings in the last 5 hours before rollover (midnight handled separately). */
 export const DEADLINE_WARNING_HOURS = [23, 1, 2, 3] as const
+
+/** Hourly warnings during the 4 AM–noon grace window. */
+export const FAIL_GRACE_WARNING_HOURS = [8, 9, 10, 11] as const
 
 function toDateStr(d: Date): string {
   return [
@@ -109,10 +118,70 @@ export function computeCaveatAllowance(
   return { used, earned, remaining, canAdd: remaining > 0 }
 }
 
-export function hoursUntilRollover(): number {
-  const now = new Date()
-  const rollover = new Date(now)
-  rollover.setHours(DAY_ROLLOVER_HOUR, 0, 0, 0)
-  if (rollover <= now) rollover.setDate(rollover.getDate() + 1)
-  return Math.max(0, Math.ceil((rollover.getTime() - now.getTime()) / 3_600_000))
+export function hoursUntilRollover(now = new Date()): number {
+  return hoursUntilLocalHour(DAY_ROLLOVER_HOUR, now)
+}
+
+/** Whole hours remaining until today's fail deadline (noon), or tomorrow's if past it. */
+export function hoursUntilFailDeadline(now = new Date()): number {
+  return hoursUntilLocalHour(FAIL_DEADLINE_HOUR, now)
+}
+
+export function isPastFailDeadline(now = new Date()): boolean {
+  return now.getHours() >= FAIL_DEADLINE_HOUR
+}
+
+/**
+ * True when the only miss is yesterday's challenge day. A multi-day gap fails
+ * immediately; a single overnight miss waits until {@link FAIL_DEADLINE_HOUR}.
+ */
+export function isSingleOvernightMiss(
+  lastPerfectDate: string | null | undefined,
+  streakStartDate: string | null | undefined,
+  natural: string,
+  naturalYesterday: string,
+): boolean {
+  if (!streakStartDate) return false
+  if (!(natural > streakStartDate)) return false
+  if (lastPerfectDate === natural || lastPerfectDate === naturalYesterday) return false
+  const dayBeforeYesterday = addDaysToDateStr(natural, -2)
+  if (lastPerfectDate === dayBeforeYesterday) return true
+  return lastPerfectDate == null && streakStartDate === naturalYesterday
+}
+
+/** Keep yesterday's checklist on screen until noon when only that day was missed. */
+export function shouldHoldIncompleteDay(
+  lastPerfectDate: string | null | undefined,
+  streakStartDate: string | null | undefined,
+  natural: string,
+  now = new Date(),
+): boolean {
+  if (isPastFailDeadline(now)) return false
+  const naturalYesterday = addDaysToDateStr(natural, -1)
+  return isSingleOvernightMiss(
+    lastPerfectDate,
+    streakStartDate,
+    natural,
+    naturalYesterday,
+  )
+}
+
+/** Ms until the next 4:00 AM roll or noon fail check, whichever is sooner. */
+export function msUntilNextChallengeClock(now = new Date()): number {
+  return Math.min(
+    nextLocalHourMs(DAY_ROLLOVER_HOUR, now),
+    nextLocalHourMs(FAIL_DEADLINE_HOUR, now),
+  ) - now.getTime()
+}
+
+function hoursUntilLocalHour(hour: number, now: Date): number {
+  const ms = nextLocalHourMs(hour, now) - now.getTime()
+  return Math.max(0, Math.ceil(ms / 3_600_000))
+}
+
+function nextLocalHourMs(hour: number, now: Date): number {
+  const next = new Date(now)
+  next.setHours(hour, 0, 0, 0)
+  if (next <= now) next.setDate(next.getDate() + 1)
+  return next.getTime()
 }

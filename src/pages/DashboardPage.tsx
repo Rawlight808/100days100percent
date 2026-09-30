@@ -25,6 +25,7 @@ export function DashboardPage() {
     today,
     todayLog,
     displayDay,
+    failGraceActive,
     phase,
     loading,
     loadError,
@@ -239,6 +240,13 @@ export function DashboardPage() {
         completedToday={displayDay.completedToday}
         celebrate={celebrate}
       />
+
+      {failGraceActive && !displayDay.completedToday && (
+        <p className="dashboard__grace" role="status">
+          Yesterday&apos;s list is still open. Finish every habit by noon or
+          the run resets.
+        </p>
+      )}
 
       <p className="dashboard__daily-msg">
         {getDailyMessage(displayDay.day)}

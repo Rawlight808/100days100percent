@@ -12,6 +12,7 @@ create table if not exists caveat_events (
 
 alter table caveat_events enable row level security;
 
+drop policy if exists "Users manage own caveat_events" on caveat_events;
 create policy "Users manage own caveat_events" on caveat_events
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 

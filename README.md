@@ -17,7 +17,8 @@ on Vercel.
    up to 300).
 3. **Select** — choose 10–20 of them as your daily list.
 4. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
-   local time. Miss a day and your streak resets to Day 1.
+   local time. If you forget, you have until **noon** the next day to finish
+   before the streak resets to Day 1.
 
 ### Features
 
@@ -77,7 +78,8 @@ write their own rows.
 
 Guided setup needs `012_goals.sql` (`goals` table plus `items.area` /
 `items.kind`) and `013_multiple_goals.sql` (more than one goal per area).
-Apply each in the SQL editor if you have not already.
+Caveats need `014_ensure_caveat_events.sql` (`caveat_events` table). Apply
+each in the SQL editor if you have not already.
 
 ## Scripts
 

@@ -83,8 +83,9 @@ export function AppNav({
                 </li>
                 <li>All daily habits must be completed every day or you start over from Day 1.</li>
                 <li>
-                  Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. Miss one day and
-                  your progress resets.
+                  Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. If you
+                  forget, you have until noon the next day to finish — after
+                  that your progress resets.
                 </li>
                 <li>You may change an item on your list after completing it three days in a row.</li>
                 <li>You may take one sabbath day per week after your first three perfect days.</li>
@@ -148,10 +149,10 @@ export function AppNav({
               <h3 className="app-nav__menu-heading">Deadline Alerts</h3>
               <p className="app-nav__muted">
                 {notifPerm === 'granted'
-                  ? 'Active: midnight warning plus hourly alerts from 11 PM–3 AM if today is incomplete.'
+                  ? 'Active: midnight warning, late-night alerts, and morning reminders until noon if today is incomplete.'
                   : notifPerm === 'denied'
-                    ? 'Enable notifications in browser settings for midnight and late-night deadline alerts.'
-                    : 'Allow notifications when prompted — you will get a midnight warning and hourly alerts in the last 5 hours before the day ends.'}
+                    ? 'Enable notifications in browser settings for deadline alerts through noon.'
+                    : 'Allow notifications when prompted — you will get a midnight warning, late-night alerts, and morning reminders until noon.'}
               </p>
             </div>
 

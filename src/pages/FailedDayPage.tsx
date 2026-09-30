@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useChallenge } from '../hooks/useChallenge'
 import { ExceptionModal } from '../components/ExceptionModal'
-import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
 import './FailedDayPage.css'
 
 export function FailedDayPage() {
@@ -39,7 +38,7 @@ export function FailedDayPage() {
         <p className="failed__label">Day {day} — Incomplete</p>
         <h1 className="failed__title">You didn&apos;t finish.</h1>
         <p className="failed__text">
-          Every habit must be checked before {DAY_ROLLOVER_HOUR}:00 AM. You missed a day, so
+          Every habit must be checked by noon the next day. You missed a day, so
           your progress resets. Choose your daily habits again and start from Day 1.
         </p>
         <button className="failed__restart" type="button" onClick={handleRestart}>

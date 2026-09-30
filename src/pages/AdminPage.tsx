@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import { supabase, isAdminEmail } from '../lib/supabase'
-import { naturalToday, addDaysToDateStr } from '../lib/challengeDay'
+import { naturalToday, addDaysToDateStr, isPastFailDeadline } from '../lib/challengeDay'
 import './AdminPage.css'
 
 interface UserStatus {
@@ -32,12 +32,20 @@ interface SharedItem {
 function dayLabel(row: AdminUserRow): string {
   const today = naturalToday()
   const yesterday = addDaysToDateStr(today, -1)
+  const dayBeforeYesterday = addDaysToDateStr(today, -2)
   if (row.items_count === 0) return 'Setup'
   if (row.top_twelve_count === 0) return 'Selecting'
   if (row.failed_day != null) return `Failed on Day ${row.failed_day}`
   if (row.last_perfect_date === today) return `Day ${row.current_day} ✓ done today`
   if (row.last_perfect_date === yesterday)
     return `Day ${row.current_day + 1} — in progress`
+  if (
+    !isPastFailDeadline() &&
+    (row.last_perfect_date === dayBeforeYesterday ||
+      (row.last_perfect_date == null && row.streak_start_date === yesterday))
+  ) {
+    return `Day ${Math.max(1, row.current_day + 1)} — until noon`
+  }
   if (row.current_day > 0) return `Day ${row.current_day + 1} — at risk`
   return 'Day 1 — not started'
 }

@@ -15,6 +15,19 @@
   margin: 0 auto 1.5rem;
 }
 
+.dashboard__grace {
+  margin: -0.5rem auto 1.5rem;
+  max-width: 440px;
+  padding: 0.7rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(245, 158, 11, 0.08);
+  text-align: center;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #fbbf24;
+}
+
 .dashboard__goals {
   margin: 0 0 1.75rem;
   padding: 1rem 1.1rem;
