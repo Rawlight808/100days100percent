@@ -89,6 +89,11 @@ export function AppNav({
                 </li>
                 <li>You may change an item on your list after completing it three days in a row.</li>
                 <li>You may take one sabbath day per week after your first three perfect days.</li>
+                <li>
+                  On a fasting day, fasting stands in for your list. Mark Fasting
+                  Day and every task is checked off at once. The day still counts
+                  toward your 100.
+                </li>
               </ol>
             </div>
 
@@ -129,6 +134,16 @@ export function AppNav({
                   not break deep work just to check boxes.
                 </li>
                 <li>2 per week. Resets Sunday. Requires an honest yes to all three questions.</li>
+              </ul>
+            </div>
+
+            <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Fasting</h3>
+              <ul className="app-nav__rules-list">
+                <li>Any day you are fasting, fasting stands in for the tasks on your list.</li>
+                <li>Tap Fasting Day and every item is checked off at once.</li>
+                <li>The day counts toward your 100 and advances your streak.</li>
+                <li>You can use this on any day the list is still open.</li>
               </ul>
             </div>
 

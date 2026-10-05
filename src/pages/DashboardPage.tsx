@@ -49,6 +49,8 @@ export function DashboardPage() {
     takeSabbath,
     hyperdriveStatus,
     takeHyperDrive,
+    fastingStatus,
+    takeFasting,
   } = useChallenge()
   const navigate = useNavigate()
   const { playCheck, playUncheck, playAllComplete } = useCompletionSound()
@@ -69,6 +71,8 @@ export function DashboardPage() {
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
   const [exceptionOpen, setExceptionOpen] = useState(false)
   const [hyperdriveOpen, setHyperdriveOpen] = useState(false)
+  const [fastingSaving, setFastingSaving] = useState(false)
+  const [fastingError, setFastingError] = useState<string | null>(null)
   const [journalEntries, setJournalEntries] = useState<Record<string, string>>({})
   const [viewingDate, setViewingDate] = useState<string | null>(null)
   const [calendarOpen, setCalendarOpen] = useState(false)
@@ -186,6 +190,21 @@ export function DashboardPage() {
     await takeSabbath()
   }
 
+  const handleFasting = async () => {
+    if (!fastingStatus.canTake || fastingSaving) return
+    const ok = window.confirm(
+      'Mark today as a fasting day? Fasting stands in for your list — every item will be checked off at once and your streak will advance.',
+    )
+    if (!ok) return
+    setFastingSaving(true)
+    setFastingError(null)
+    const result = await takeFasting()
+    setFastingSaving(false)
+    if (!result.ok) {
+      setFastingError(result.error ?? 'Could not save this fasting day.')
+    }
+  }
+
   const handleCommitEdit = async () => {
     if (!editingItemId || !editText.trim()) return
     await updateItemText(editingItemId, editText.trim())
@@ -297,6 +316,14 @@ export function DashboardPage() {
             >
               Hyper Drive
             </button>
+            <button
+              className="dashboard__fasting-btn"
+              type="button"
+              onClick={handleFasting}
+              disabled={!fastingStatus.canTake || fastingSaving}
+            >
+              {fastingSaving ? 'Saving…' : 'Fasting Day'}
+            </button>
           </div>
           <p className="dashboard__sabbath-hint">
             {!sabbathStatus.unlocked
@@ -310,6 +337,10 @@ export function DashboardPage() {
               ? 'Hyper Drive already used twice this week. Resets Sunday.'
               : `Hyper Drive: deep goal work instead of the list. ${hyperdriveStatus.remaining} left this week.`}
           </p>
+          <p className="dashboard__sabbath-hint">
+            Fasting Day: the fast stands in for today&apos;s list and checks every item off.
+          </p>
+          {fastingError && <p className="dashboard__fasting-error">{fastingError}</p>}
         </div>
       )}
 
@@ -318,6 +349,9 @@ export function DashboardPage() {
       )}
       {displayDay.completedToday && hyperdriveStatus.todayIsHyperDrive && (
         <p className="dashboard__hyperdrive-tag">Today was Hyper Drive.</p>
+      )}
+      {displayDay.completedToday && fastingStatus.todayIsFasting && (
+        <p className="dashboard__fasting-tag">Today was a fasting day.</p>
       )}
 
       {editError && (
@@ -375,20 +409,28 @@ export function DashboardPage() {
           <div className="dashboard__complete-title">
             {todayLog?.is_exception
               ? 'Exception day — streak frozen'
-              : todayLog?.is_hyperdrive
-                ? 'Hyper Drive — you stayed in the work'
-                : displayDay.day >= REQUIRED_DAYS
-                  ? 'You did it. 100 days of 100%.'
-                  : `Day ${displayDay.day} — Complete`}
+              : todayLog?.is_fasting
+                ? displayDay.day >= REQUIRED_DAYS
+                  ? 'Fasting day — and you finished the hundred'
+                  : 'Fasting day — the fast covers your list'
+                : todayLog?.is_hyperdrive
+                  ? 'Hyper Drive — you stayed in the work'
+                  : displayDay.day >= REQUIRED_DAYS
+                    ? 'You did it. 100 days of 100%.'
+                    : `Day ${displayDay.day} — Complete`}
           </div>
           <div className="dashboard__complete-text">
             {todayLog?.is_exception
               ? `Today doesn't count toward your 100, but your streak survives. Day ${displayDay.day + 1} resumes tomorrow. Take care of what matters.`
-              : todayLog?.is_hyperdrive
-                ? `Today counts. You were already doing the thing the list exists for. Day ${displayDay.day + 1} is tomorrow.`
-                : displayDay.day >= REQUIRED_DAYS
-                  ? 'Incredible. You committed and followed through. This is who you are now.'
-                  : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
+              : todayLog?.is_fasting
+                ? displayDay.day >= REQUIRED_DAYS
+                  ? 'Today counts. Fasting stands in for the tasks. You finished the hundred.'
+                  : `Today counts. Fasting stands in for the tasks. Day ${displayDay.day + 1} is tomorrow.`
+                : todayLog?.is_hyperdrive
+                  ? `Today counts. You were already doing the thing the list exists for. Day ${displayDay.day + 1} is tomorrow.`
+                  : displayDay.day >= REQUIRED_DAYS
+                    ? 'Incredible. You committed and followed through. This is who you are now.'
+                    : `Come back tomorrow for Day ${displayDay.day + 1}. You're unstoppable.`}
           </div>
           {displayDay.day < REQUIRED_DAYS && (
             <>

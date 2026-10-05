@@ -64,6 +64,7 @@ export interface DailyLog {
   is_sabbath?: boolean
   is_exception?: boolean
   is_hyperdrive?: boolean
+  is_fasting?: boolean
 }
 
 /** Days of perfect completion required before the sabbath unlocks. */
@@ -158,6 +159,7 @@ async function clearLogsPreservingJournals(userId: string) {
       is_sabbath: false,
       is_exception: false,
       is_hyperdrive: false,
+      is_fasting: false,
     })
     .eq('user_id', userId)
 }
@@ -224,6 +226,7 @@ export function useChallenge() {
   const todayLogRef = useRef<DailyLog | null>(null)
   const streakRef = useRef<Streak | null>(null)
   const loadSeqRef = useRef(0)
+  const fastingLock = useRef(false)
   const itemsRef = useRef<Item[]>([])
   itemsRef.current = items
 
@@ -1489,6 +1492,86 @@ export function useChallenge() {
     [user, streak, displayDay.completedToday, topTwelve, today, yesterday, hyperdriveDates],
   )
 
+  const fastingStatus = useMemo(() => {
+    const todayIsFasting = todayLog?.is_fasting === true
+    const canTake =
+      !displayDay.completedToday &&
+      todayLog?.is_exception !== true &&
+      topTwelve.length > 0
+    return { todayIsFasting, canTake }
+  }, [todayLog, displayDay.completedToday, topTwelve.length])
+
+  const takeFasting = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
+    if (fastingLock.current) {
+      return { ok: false, error: 'Already saving this fasting day.' }
+    }
+    fastingLock.current = true
+    try {
+      if (!user || !streakRef.current) {
+        return { ok: false, error: 'You must be signed in.' }
+      }
+      const s = streakRef.current
+      if (s.last_perfect_date === today || displayDay.completedToday) {
+        return { ok: false, error: 'Today is already complete.' }
+      }
+      if (todayLogRef.current?.is_exception) {
+        return { ok: false, error: 'Today is already an exception day.' }
+      }
+      if (topTwelve.length === 0) {
+        return { ok: false, error: 'Lock in your daily habits first.' }
+      }
+
+      const allIds = topTwelve.map(i => i.id)
+      const { data: logData, error: logError } = await supabase
+        .from('daily_logs')
+        .upsert(
+          {
+            user_id: user.id,
+            log_date: today,
+            completed_item_ids: allIds,
+            all_completed: true,
+            is_fasting: true,
+          },
+          { onConflict: 'user_id,log_date' },
+        )
+        .select()
+        .single()
+
+      if (logError || !logData) {
+        return { ok: false, error: 'Could not save this fasting day. Please try again.' }
+      }
+
+      const log = logData as DailyLog
+      setTodayLog(log)
+      todayLogRef.current = log
+
+      const newDay = s.last_perfect_date === yesterday ? s.current_day + 1 : 1
+      const { data: updatedStreak } = await supabase
+        .from('streaks')
+        .update({
+          current_day: newDay,
+          last_perfect_date: today,
+          streak_start_date:
+            s.last_perfect_date === yesterday ? s.streak_start_date : today,
+          failed_day: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (updatedStreak) {
+        setStreak(updatedStreak as Streak)
+        streakRef.current = updatedStreak as Streak
+      }
+      setFailedDay(null)
+      setJustCompleted(true)
+      return { ok: true }
+    } finally {
+      fastingLock.current = false
+    }
+  }, [user, displayDay.completedToday, topTwelve, today, yesterday])
+
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
       if (!user) return false
@@ -1611,6 +1694,8 @@ export function useChallenge() {
     takeSabbath,
     hyperdriveStatus,
     takeHyperDrive,
+    fastingStatus,
+    takeFasting,
     reload: loadData,
   }
 }

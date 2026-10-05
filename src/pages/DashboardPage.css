@@ -256,6 +256,48 @@
   text-transform: uppercase;
 }
 
+.dashboard__fasting-btn {
+  padding: 0.55rem 1.4rem;
+  border: 1px solid rgba(196, 181, 253, 0.45);
+  border-radius: 999px;
+  background: transparent;
+  color: #c4b5fd;
+  font-size: 0.9rem;
+  font-weight: 500;
+  font-family: inherit;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dashboard__fasting-btn:hover:not(:disabled) {
+  background: rgba(196, 181, 253, 0.1);
+  border-color: rgba(196, 181, 253, 0.75);
+  transform: translateY(-1px);
+}
+
+.dashboard__fasting-btn:disabled {
+  color: rgba(255, 255, 255, 0.25);
+  border-color: rgba(255, 255, 255, 0.08);
+  cursor: not-allowed;
+}
+
+.dashboard__fasting-tag {
+  margin: 0 0 1.5rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #c4b5fd;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard__fasting-error {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #f87171;
+  text-align: center;
+}
+
 .dashboard__celebration {
   position: fixed;
   inset: 0;
