@@ -152,14 +152,14 @@ export function AppNav({
               <ul className="app-nav__rules-list">
                 <li>Add as many as you want. They sit beside the daily list.</li>
                 <li>
-                  Each goal’s week starts the day you add it and lasts 7 days.
-                  A goal added Tuesday runs through Monday, then opens again
-                  the next Tuesday.
+                  Do each goal once in its first 7 days, then once in the next
+                  7 days, and so on. A goal added Tuesday is due again the
+                  following Tuesday.
                 </li>
-                <li>Mark it done once in that window. When the week resets, it is open again.</li>
+                <li>Finishing one block does not count for the next block.</li>
                 <li>
-                  On the last 3 days, if it still isn’t done, the app reminds
-                  you until you finish it or the week resets.
+                  On the last 3 days of a block, if it still isn’t done, the
+                  app reminds you until you finish it or those 7 days end.
                 </li>
               </ul>
             </div>

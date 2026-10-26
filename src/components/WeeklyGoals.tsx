@@ -8,17 +8,33 @@ interface WeeklyGoalsProps {
   today: string
 }
 
+const PERIOD_WORDS = [
+  'First',
+  'Second',
+  'Third',
+  'Fourth',
+  'Fifth',
+  'Sixth',
+  'Seventh',
+  'Eighth',
+  'Ninth',
+  'Tenth',
+]
+
+function periodName(number: number): string {
+  return PERIOD_WORDS[number - 1] ?? `Period ${number}`
+}
+
 function goalStatus(goal: WeeklyGoalView): string {
-  const reset = formatShortChallengeDate(goal.window.resetsOn)
-  if (goal.done) return `Done this week · resets ${reset}`
-  if (goal.window.index > 0 && goal.window.dayInWindow === 1) {
-    return `Week reset today · open through ${formatShortChallengeDate(goal.window.end)}`
-  }
+  const name = periodName(goal.window.index + 1)
+  const end = formatShortChallengeDate(goal.window.end)
+  const next = formatShortChallengeDate(goal.window.resetsOn)
+  if (goal.done) return `${name} 7 days done. Do it again starting ${next}.`
   if (goal.window.inReminderStretch) {
     const left = goal.window.daysLeft <= 1 ? 'Last day' : `${goal.window.daysLeft} days left`
-    return `${left} · resets ${reset}`
+    return `${name} 7 days · ${left} to do it once · through ${end}`
   }
-  return `Day ${goal.window.dayInWindow} of 7 · resets ${reset}`
+  return `${name} 7 days · do this once by ${end}`
 }
 
 export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
@@ -67,7 +83,7 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
         <h2 className="weekly-goals__title">Weekly goals</h2>
         {goals.length > 0 && (
           <p className="weekly-goals__count">
-            {doneCount} of {goals.length} done
+            {doneCount} of {goals.length} done for these 7 days
           </p>
         )}
       </div>
@@ -85,7 +101,7 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
           aria-valuemin={0}
           aria-valuemax={goals.length}
           aria-valuenow={doneCount}
-          aria-label="Weekly goals finished in the current window"
+          aria-label="Weekly goals fulfilled in the current 7 days"
         >
           <div className="weekly-goals__bar-fill" style={{ width: `${progressPct}%` }} />
         </div>
@@ -111,7 +127,9 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
       )}
 
       {!schemaMissing && !loading && goals.length > 0 && doneCount === goals.length && (
-        <p className="weekly-goals__clear">All weekly goals are done. Each one opens again when its week resets.</p>
+        <p className="weekly-goals__clear">
+          Done for these 7 days. Each goal is due again when the next 7 days start.
+        </p>
       )}
 
       {!schemaMissing && loading && <p className="weekly-goals__hint">Loading weekly goals…</p>}
@@ -129,13 +147,36 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
                   type="button"
                   className={`weekly-goals__check${goal.done ? ' weekly-goals__check--on' : ''}`}
                   aria-pressed={goal.done}
-                  aria-label={`${goal.done ? 'Mark not done' : 'Mark done'}: ${goal.text}`}
+                  aria-label={`${goal.done ? 'Undo this 7-day block' : 'Mark these 7 days done'}: ${goal.text}`}
                   disabled={busyId === goal.id}
                   onClick={() => void toggleGoal(goal.id)}
                 />
                 <div className="weekly-goals__copy">
                   <p className="weekly-goals__text">{goal.text}</p>
                   <p className="weekly-goals__meta">{goalStatus(goal)}</p>
+                  {goal.periods.length > 0 && (
+                    <ol className="weekly-goals__periods">
+                      {goal.periods.map(period => {
+                        const state = period.done ? 'done' : period.missed ? 'missed' : 'open'
+                        const label = period.done
+                          ? `${periodName(period.number)} 7 days done`
+                          : period.missed
+                            ? `${periodName(period.number)} 7 days missed`
+                            : `${periodName(period.number)} 7 days still open`
+                        return (
+                          <li key={period.start}>
+                            <span
+                              className={`weekly-goals__period weekly-goals__period--${state}${period.current ? ' weekly-goals__period--current' : ''}`}
+                              title={label}
+                            >
+                              {period.number}
+                            </span>
+                            <span className="weekly-goals__period-label">{label}</span>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
                 </div>
                 <button
                   type="button"
@@ -181,8 +222,9 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
 
       {!schemaMissing && !loading && (
         <p className="weekly-goals__hint">
-          Add as many as you want. Each goal&apos;s week starts today and resets every 7 days from
-          that day. On the last 3 days, you&apos;ll be reminded if it still isn&apos;t done.
+          Add as many as you want. Do each one once in the first 7 days, then once in the next
+          7 days, and so on. On the last 3 days of a block, you&apos;ll be reminded if it isn&apos;t
+          done.
         </p>
       )}
     </section>

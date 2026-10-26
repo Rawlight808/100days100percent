@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../lib/supabase'
-import { addDaysToDateStr, weeklyGoalWindow, type WeeklyGoalWindow } from '../lib/challengeDay'
+import {
+  weeklyGoalPeriods,
+  weeklyGoalWindow,
+  type WeeklyGoalPeriod,
+  type WeeklyGoalWindow,
+} from '../lib/challengeDay'
 
 const FIRED_PREFIX = 'hundred-days:weekly-goal-fired'
 
@@ -8,8 +13,11 @@ export interface WeeklyGoalView {
   id: string
   text: string
   startedOn: string
+  /** True only when the current 7-day block has been fulfilled. */
   done: boolean
   window: WeeklyGoalWindow
+  /** First block through the current block. A finished block stays done or missed. */
+  periods: WeeklyGoalPeriod[]
 }
 
 interface GoalRow {
@@ -34,7 +42,7 @@ function reminderBody(goals: WeeklyGoalView[]): string {
     return `${goal.text} (${left})`
   })
   const more = goals.length > 3 ? `, and ${goals.length - 3} more` : ''
-  return `${parts.join(', ')}${more}. Finish before the week resets.`
+  return `${parts.join(', ')}${more}. Do it once before these 7 days end.`
 }
 
 export function useWeeklyGoals(userId: string | undefined, today: string) {
@@ -53,7 +61,6 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
       setLoading(false)
       return
     }
-    const since = addDaysToDateStr(today, -13)
     const [goalsRes, compRes] = await Promise.all([
       supabase
         .from('weekly_goals')
@@ -64,8 +71,7 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
       supabase
         .from('weekly_goal_completions')
         .select('goal_id, window_start')
-        .eq('user_id', userId)
-        .gte('window_start', since),
+        .eq('user_id', userId),
     ])
 
     const missing =
@@ -93,24 +99,31 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
     setRows((goalsRes.data ?? []) as GoalRow[])
     setCompletions((compRes.data ?? []) as CompletionRow[])
     setLoading(false)
-  }, [userId, today])
+  }, [userId])
 
   useEffect(() => {
-    // Refetch when the challenge day changes so a rolled window drops last week's check.
+    // Refetch when the challenge day changes so the next 7-day block is current.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load()
-  }, [load])
+  }, [load, today])
 
   const goals = useMemo((): WeeklyGoalView[] => {
-    const doneKeys = new Set(completions.map(row => `${row.goal_id}:${row.window_start}`))
+    const startsByGoal = new Map<string, string[]>()
+    for (const row of completions) {
+      const list = startsByGoal.get(row.goal_id) ?? []
+      list.push(row.window_start)
+      startsByGoal.set(row.goal_id, list)
+    }
     return rows.map(row => {
-      const window = weeklyGoalWindow(row.started_on, today)
+      const periods = weeklyGoalPeriods(row.started_on, today, startsByGoal.get(row.id) ?? [])
+      const current = periods[periods.length - 1]
       return {
         id: row.id,
         text: row.text,
         startedOn: row.started_on,
-        done: doneKeys.has(`${row.id}:${window.start}`),
-        window,
+        done: current?.done ?? false,
+        window: weeklyGoalWindow(row.started_on, today),
+        periods,
       }
     })
   }, [rows, completions, today])

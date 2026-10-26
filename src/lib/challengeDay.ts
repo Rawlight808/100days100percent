@@ -88,10 +88,23 @@ export interface WeeklyGoalWindow {
   resetsOn: string
 }
 
+/** One 7-day block in a goal's repeating sequence. */
+export interface WeeklyGoalPeriod {
+  /** 1 for the first 7 days, 2 for the second, and so on. */
+  number: number
+  start: string
+  end: string
+  done: boolean
+  current: boolean
+  /** A finished block that was never fulfilled. */
+  missed: boolean
+}
+
 /**
  * Rolling 7-day window anchored to `startedOn`, the day the goal was added.
- * A goal added Tuesday covers Tuesday through Monday, then opens again the
- * next Tuesday. Completion is stored per `start`, so a reset clears progress.
+ * A goal added Tuesday covers Tuesday through Monday, then must be done
+ * again in the next Tuesday–Monday block. Completion is stored per `start`,
+ * so fulfilling one block does not fulfill the next.
  */
 export function weeklyGoalWindow(startedOn: string, today: string): WeeklyGoalWindow {
   const elapsed = Math.max(0, daysBetween(startedOn, today))
@@ -112,6 +125,31 @@ export function weeklyGoalWindow(startedOn: string, today: string): WeeklyGoalWi
     inReminderStretch: dayInWindow > WEEKLY_GOAL_WINDOW_DAYS - WEEKLY_GOAL_REMINDER_DAYS,
     resetsOn: addDaysToDateStr(start, WEEKLY_GOAL_WINDOW_DAYS),
   }
+}
+
+/** Every 7-day block from the day the goal was added through the block that contains `today`. */
+export function weeklyGoalPeriods(
+  startedOn: string,
+  today: string,
+  completedStarts: readonly string[],
+): WeeklyGoalPeriod[] {
+  const window = weeklyGoalWindow(startedOn, today)
+  const done = new Set(completedStarts.map(date => date.slice(0, 10)))
+  const periods: WeeklyGoalPeriod[] = []
+  for (let index = 0; index <= window.index; index++) {
+    const start = addDaysToDateStr(startedOn, index * WEEKLY_GOAL_WINDOW_DAYS)
+    const fulfilled = done.has(start)
+    const current = index === window.index
+    periods.push({
+      number: index + 1,
+      start,
+      end: addDaysToDateStr(start, WEEKLY_GOAL_WINDOW_DAYS - 1),
+      done: fulfilled,
+      current,
+      missed: !current && !fulfilled,
+    })
+  }
+  return periods
 }
 
 /**

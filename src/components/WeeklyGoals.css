@@ -150,6 +150,67 @@
   color: rgba(255, 255, 255, 0.4);
 }
 
+.weekly-goals__periods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weekly-goals__periods li {
+  position: relative;
+  display: flex;
+}
+
+.weekly-goals__period {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35rem;
+  height: 1.35rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.weekly-goals__period--done {
+  background: #c4b5fd;
+  border-color: #c4b5fd;
+  color: #120f18;
+}
+
+.weekly-goals__period--missed {
+  background: rgba(248, 113, 113, 0.15);
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #f87171;
+}
+
+.weekly-goals__period--open {
+  border-color: rgba(196, 181, 253, 0.55);
+  color: #c4b5fd;
+}
+
+.weekly-goals__period--current {
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+
+.weekly-goals__period-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .weekly-goals__item--due .weekly-goals__meta {
   color: #fbbf24;
 }
