@@ -9,12 +9,15 @@ interface AppNavProps {
   onStartOver?: () => void | Promise<void>
   startOverLabel?: string
   startOverDesc?: string
+  /** False while Day 1 is still in the future, so habit reminders stay quiet. */
+  remindersActive?: boolean
 }
 
 export function AppNav({
   onStartOver,
   startOverLabel = 'Reset & Choose Again',
   startOverDesc = "Re-pick your daily habits from your 100 list. Your streak and today's progress will be reset.",
+  remindersActive = true,
 }: AppNavProps) {
   const { signOut, deleteAccount } = useAuth()
   const {
@@ -22,7 +25,7 @@ export function AppNav({
     permission: notifPerm,
     enable: enableReminder,
     disable: disableReminder,
-  } = useReminder()
+  } = useReminder(remindersActive)
   const {
     shareWithCoach,
     setSharing,
@@ -83,11 +86,20 @@ export function AppNav({
                 </li>
                 <li>All daily habits must be completed every day or you start over from Day 1.</li>
                 <li>
+                  After your list, daily habits, and weekly goals are set, you
+                  choose the day Day 1 begins. That can be today or a later day.
+                  The daily checklist stays closed until then.
+                </li>
+                <li>
                   Each challenge day ends at {DAY_ROLLOVER_HOUR}:00 AM. If you
                   forget, you have until noon the next day to finish — after
                   that your progress resets.
                 </li>
                 <li>You may change an item on your list after completing it three days in a row.</li>
+                <li>
+                  You can keep a note on any rule. A note is only for you. It
+                  does not change the rule or spend a caveat.
+                </li>
                 <li>You may take one sabbath day per week after your first three perfect days.</li>
                 <li>
                   On a fasting day, fasting stands in for your list. Mark Fasting
@@ -150,7 +162,7 @@ export function AppNav({
             <div className="app-nav__menu-section">
               <h3 className="app-nav__menu-heading">Weekly goals</h3>
               <ul className="app-nav__rules-list">
-                <li>Add as many as you want. They sit beside the daily list.</li>
+                <li>Add as many as you want. They sit beside the daily list and begin on Day 1.</li>
                 <li>
                   Do each goal once in its first 7 days, then once in the next
                   7 days, and so on. A goal added Tuesday is due again the

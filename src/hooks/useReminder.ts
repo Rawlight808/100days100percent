@@ -19,7 +19,7 @@ function load(): ReminderSettings {
   }
 }
 
-export function useReminder() {
+export function useReminder(active = true) {
   const [settings, setSettings] = useState<ReminderSettings>(load)
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied',
@@ -56,7 +56,7 @@ export function useReminder() {
   }, [settings, save])
 
   useEffect(() => {
-    if (!settings.enabled || permission !== 'granted') return
+    if (!active || !settings.enabled || permission !== 'granted') return
 
     const check = () => {
       const now = new Date()
@@ -70,7 +70,7 @@ export function useReminder() {
 
     const interval = setInterval(check, 60_000)
     return () => clearInterval(interval)
-  }, [settings, permission])
+  }, [active, settings, permission])
 
   return { settings, permission, enable, disable }
 }

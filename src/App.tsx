@@ -5,6 +5,7 @@ import { LandingPage } from './pages/LandingPage'
 import { AuthPage } from './pages/AuthPage'
 import { SetupPage } from './pages/SetupPage'
 import { SelectPage } from './pages/SelectPage'
+import { StartPage } from './pages/StartPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FailedDayPage } from './pages/FailedDayPage'
 import { AdminPage } from './pages/AdminPage'
@@ -29,6 +30,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <SelectPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/start"
+            element={
+              <ProtectedRoute>
+                <StartPage />
               </ProtectedRoute>
             }
           />

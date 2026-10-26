@@ -22,6 +22,7 @@ import { useChallenge, MIN_TOP, MAX_TOP, type Item } from '../hooks/useChallenge
 import { AppNav } from '../components/AppNav'
 import { CaveatModal } from '../components/CaveatModal'
 import { EditItemModal } from '../components/EditItemModal'
+import { NoteModal } from '../components/NoteModal'
 import './SelectPage.css'
 
 interface SortableRowProps {
@@ -31,6 +32,7 @@ interface SortableRowProps {
   onToggle: (id: string) => void
   onStartEdit: (id: string) => void
   onOpenCaveat: (id: string) => void
+  onOpenNote: (id: string) => void
 }
 
 function SortableRow({
@@ -40,6 +42,7 @@ function SortableRow({
   onToggle,
   onStartEdit,
   onOpenCaveat,
+  onOpenNote,
 }: SortableRowProps) {
   const {
     attributes,
@@ -79,13 +82,27 @@ function SortableRow({
 
       <span className="select__item-num">{index + 1}</span>
 
-      <span
-        className="select__item-text"
-        onClick={() => onToggle(item.id)}
-      >
-        {item.text}
+      <span className="select__item-body">
+        <span
+          className="select__item-text"
+          onClick={() => onToggle(item.id)}
+        >
+          {item.text}
+        </span>
+        {item.note ? <span className="select__item-note">{item.note}</span> : null}
       </span>
 
+      <button
+        type="button"
+        className={`select__item-note-btn${item.note ? ' select__item-note-btn--set' : ''}`}
+        title={item.note ? 'Edit note' : 'Add a note'}
+        onClick={e => {
+          e.stopPropagation()
+          onOpenNote(item.id)
+        }}
+      >
+        Note
+      </button>
       <button
         className={`select__item-caveat${item.caveat ? ' select__item-caveat--set' : ''}`}
         title={item.caveat ? 'Caveat: ' + item.caveat : 'Add a caveat'}
@@ -151,6 +168,7 @@ export function SelectPage() {
     loading,
     saveTopTwelve,
     updateItemText,
+    updateItemNote,
     updateItemCaveat,
     caveatStatus,
     reorderItems,
@@ -160,6 +178,7 @@ export function SelectPage() {
   const [saving, setSaving] = useState(false)
   const [editItemId, setEditItemId] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
+  const [noteItemId, setNoteItemId] = useState<string | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -214,7 +233,7 @@ export function SelectPage() {
     setSaving(true)
     await saveTopTwelve(Array.from(selectedIds))
     setSaving(false)
-    navigate('/dashboard')
+    navigate('/start')
   }
 
   return (
@@ -229,7 +248,9 @@ export function SelectPage() {
         <p className="select__subtitle">
           Pick between {MIN_TOP} and {MAX_TOP} items from your list — your daily
           commitment for 100 days. Drag the dots to reorder (hold then drag on
-          phone), tap the pencil to edit, or add a caveat to a rule.
+          phone), tap the pencil to edit, tap Note to write about a rule, or add a caveat.
+          Continuing does not start the run. Next you can add weekly goals and
+          choose the day Day 1 begins.
         </p>
       </div>
 
@@ -272,6 +293,7 @@ export function SelectPage() {
                 onToggle={toggle}
                 onStartEdit={setEditItemId}
                 onOpenCaveat={setCaveatItemId}
+                onOpenNote={setNoteItemId}
               />
             ))}
           </div>
@@ -286,8 +308,17 @@ export function SelectPage() {
           }
           onClick={handleSave}
         >
-          {saving ? 'Saving…' : 'Lock In & Start'}
+          {saving ? 'Saving…' : 'Continue'}
         </button>
+        {phase === 'scheduled' && (
+          <button
+            type="button"
+            className="select__btn select__btn--secondary"
+            onClick={() => navigate('/start')}
+          >
+            Back to start day
+          </button>
+        )}
         <button
           type="button"
           className="select__btn select__btn--secondary"
@@ -296,8 +327,8 @@ export function SelectPage() {
           Edit my list
         </button>
         <p className="select__edit-note">
-          If you change your list, you&apos;ll pick your daily habits again from the
-          updated items.
+          If you change your list, you&apos;ll pick your daily habits and start day
+          again from the updated items.
         </p>
       </div>
 
@@ -309,6 +340,20 @@ export function SelectPage() {
             initialText={target.text}
             onSave={text => updateItemText(target.id, text)}
             onClose={() => setEditItemId(null)}
+          />
+        )
+      })()}
+
+      {noteItemId && (() => {
+        const target = items.find(i => i.id === noteItemId)
+        if (!target) return null
+        return (
+          <NoteModal
+            itemText={target.text}
+            initialNote={target.note ?? ''}
+            onSave={note => updateItemNote(target.id, note)}
+            onRemove={() => updateItemNote(target.id, null)}
+            onClose={() => setNoteItemId(null)}
           />
         )
       })()}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import {
   weeklyGoalPeriods,
@@ -45,9 +45,15 @@ function reminderBody(goals: WeeklyGoalView[]): string {
   return `${parts.join(', ')}${more}. Do it once before these 7 days end.`
 }
 
-export function useWeeklyGoals(userId: string | undefined, today: string) {
+export function useWeeklyGoals(
+  userId: string | undefined,
+  today: string,
+  options?: { notify?: boolean },
+) {
+  const notify = options?.notify !== false
   const [rows, setRows] = useState<GoalRow[]>([])
   const [completions, setCompletions] = useState<CompletionRow[]>([])
+  const loadSeq = useRef(0)
   const [loading, setLoading] = useState(true)
   const [schemaMissing, setSchemaMissing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +67,7 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
       setLoading(false)
       return
     }
+    const seq = ++loadSeq.current
     const [goalsRes, compRes] = await Promise.all([
       supabase
         .from('weekly_goals')
@@ -79,6 +86,8 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
       goalsRes.error?.code === '42P01' ||
       compRes.error?.code === 'PGRST205' ||
       compRes.error?.code === '42P01'
+
+    if (seq !== loadSeq.current) return
 
     if (missing) {
       setSchemaMissing(true)
@@ -134,6 +143,7 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
   )
 
   useEffect(() => {
+    if (!notify) return
     if (!userId || dueGoals.length === 0) return
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
     const key = firedKey(userId, today)
@@ -141,7 +151,7 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
     localStorage.setItem(key, '1')
     const title = dueGoals.length === 1 ? 'Weekly goal still open' : 'Weekly goals still open'
     new Notification(title, { body: reminderBody(dueGoals), icon: '/favicon.svg' })
-  }, [userId, today, dueGoals])
+  }, [notify, userId, today, dueGoals])
 
   const requestPermission = useCallback(async () => {
     if (typeof Notification === 'undefined') return 'unsupported' as const
@@ -254,6 +264,59 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
     [userId, busyId],
   )
 
+  /**
+   * Before Day 1, move every weekly goal onto the chosen start day and drop
+   * any completions so the first 7-day block begins with the run.
+   */
+  const setAnchorDay = useCallback(
+    async (date: string): Promise<{ ok: boolean; error?: string }> => {
+      if (!userId) return { ok: false, error: 'You must be signed in.' }
+      if (loading || schemaMissing) return { ok: true }
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return { ok: false, error: 'Pick a valid day.' }
+      }
+      const aligned =
+        completions.length === 0 &&
+        rows.every(row => row.started_on.slice(0, 10) === date)
+      if (aligned) return { ok: true }
+
+      const { error: updateError } = await supabase
+        .from('weekly_goals')
+        .update({ started_on: date })
+        .eq('user_id', userId)
+      if (updateError) {
+        if (updateError.code === 'PGRST205' || updateError.code === '42P01') return { ok: true }
+        setError('Could not move weekly goals to that start day.')
+        return { ok: false, error: 'Could not move weekly goals to that start day.' }
+      }
+      const { error: deleteError } = await supabase
+        .from('weekly_goal_completions')
+        .delete()
+        .eq('user_id', userId)
+      if (deleteError && deleteError.code !== 'PGRST205' && deleteError.code !== '42P01') {
+        setError('Could not reset weekly goal progress for the new start day.')
+        return { ok: false, error: 'Could not reset weekly goal progress for the new start day.' }
+      }
+      const { data, error: readError } = await supabase
+        .from('weekly_goals')
+        .select('id, text, started_on, position')
+        .eq('user_id', userId)
+        .order('position', { ascending: true })
+        .order('created_at', { ascending: true })
+      if (readError) {
+        setError('Could not refresh weekly goals.')
+        return { ok: false, error: 'Could not refresh weekly goals.' }
+      }
+      // Claim the latest write so an in-flight load cannot put the old dates back.
+      ++loadSeq.current
+      setError(null)
+      setRows((data ?? []) as GoalRow[])
+      setCompletions([])
+      return { ok: true }
+    },
+    [userId, loading, schemaMissing, rows, completions],
+  )
+
   return {
     goals,
     dueGoals,
@@ -266,5 +329,6 @@ export function useWeeklyGoals(userId: string | undefined, today: string) {
     toggleGoal,
     removeGoal,
     requestPermission,
+    setAnchorDay,
   }
 }

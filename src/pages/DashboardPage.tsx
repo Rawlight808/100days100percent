@@ -9,6 +9,7 @@ import { GOAL_AREAS } from '../data/goalAreas'
 import { DayCounter } from '../components/DayCounter'
 import { CheckItem } from '../components/CheckItem'
 import { CaveatModal } from '../components/CaveatModal'
+import { NoteModal } from '../components/NoteModal'
 import { ExceptionModal } from '../components/ExceptionModal'
 import { HyperDriveModal } from '../components/HyperDriveModal'
 import { JournalCalendar } from '../components/JournalCalendar'
@@ -41,6 +42,7 @@ export function DashboardPage() {
     getJournalEntries,
     getItemConsecutiveDays,
     updateItemText,
+    updateItemNote,
     updateItemCaveat,
     caveatStatus,
     exceptionStatus,
@@ -70,6 +72,7 @@ export function DashboardPage() {
   const [editText, setEditText] = useState('')
   const [editError, setEditError] = useState<string | null>(null)
   const [caveatItemId, setCaveatItemId] = useState<string | null>(null)
+  const [noteItemId, setNoteItemId] = useState<string | null>(null)
   const [exceptionOpen, setExceptionOpen] = useState(false)
   const [hyperdriveOpen, setHyperdriveOpen] = useState(false)
   const [fastingSaving, setFastingSaving] = useState(false)
@@ -239,6 +242,7 @@ export function DashboardPage() {
 
   if (phase === 'setup') return <Navigate to="/setup" replace />
   if (phase === 'select') return <Navigate to="/select" replace />
+  if (phase === 'scheduled') return <Navigate to="/start" replace />
   if (phase === 'failed') return <Navigate to="/failed" replace />
 
   const dailyTotal = topTwelve.length
@@ -399,9 +403,11 @@ export function DashboardPage() {
               index={i}
               disabled={displayDay.completedToday}
               caveat={item.caveat}
+              note={item.note}
               onToggle={() => handleToggle(item.id)}
               onEdit={() => handleStartEdit(item.id, item.text)}
               onCaveat={() => setCaveatItemId(item.id)}
+              onNote={() => setNoteItemId(item.id)}
             />
           )
         })}
@@ -537,6 +543,20 @@ export function DashboardPage() {
           <div className="dashboard__celebration-burst" />
         </div>
       )}
+
+      {noteItemId && (() => {
+        const target = topTwelve.find(i => i.id === noteItemId)
+        if (!target) return null
+        return (
+          <NoteModal
+            itemText={target.text}
+            initialNote={target.note ?? ''}
+            onSave={note => updateItemNote(target.id, note)}
+            onRemove={() => updateItemNote(target.id, null)}
+            onClose={() => setNoteItemId(null)}
+          />
+        )
+      })()}
 
       {caveatItemId && (() => {
         const target = topTwelve.find(i => i.id === caveatItemId)

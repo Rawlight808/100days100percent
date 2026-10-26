@@ -173,6 +173,16 @@ export function weekStartStr(dateStr: string): string {
   return toDateStr(date)
 }
 
+/** Furthest Day 1 a new run can be scheduled, counted from the current challenge day. */
+export const START_DATE_MAX_DAYS = 366
+
+/** True when `date` is a challenge-day string from `earliest` through one year later. */
+export function isValidStartDate(date: string, earliest: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false
+  if (date < earliest) return false
+  return date <= addDaysToDateStr(earliest, START_DATE_MAX_DAYS)
+}
+
 /** Whole calendar days from `from` to `to` (local dates, not UTC). */
 export function daysBetween(from: string, to: string): number {
   const [y1, m1, d1] = from.split('-').map(Number)

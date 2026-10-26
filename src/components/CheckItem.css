@@ -60,11 +60,54 @@
   transform: scale(1);
 }
 
-.check-item__text {
+.check-item__main {
   flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.check-item__text {
   font-size: 1rem;
   color: rgba(255, 255, 255, 0.8);
   transition: color 0.2s ease;
+}
+
+.check-item__note-text {
+  font-size: 0.78rem;
+  line-height: 1.4;
+  color: rgba(196, 181, 253, 0.9);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.check-item__note {
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.55);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  cursor: pointer;
+}
+
+.check-item__note:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.check-item__note--set {
+  color: #c4b5fd;
+  border-color: rgba(196, 181, 253, 0.55);
+}
+
+.check-item--disabled .check-item__note {
+  pointer-events: auto;
 }
 
 .check-item--checked .check-item__text {

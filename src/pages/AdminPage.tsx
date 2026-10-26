@@ -26,6 +26,7 @@ interface SharedItem {
   text: string
   position: number
   caveat: string | null
+  note?: string | null
 }
 
 /** Human status for a user's streak, from the admin's local challenge day. */
@@ -280,6 +281,12 @@ export function AdminPage() {
                               <span className="admin__users-caveat">
                                 {' '}
                                 — caveat: {item.caveat}
+                              </span>
+                            )}
+                            {item.note && (
+                              <span className="admin__users-caveat">
+                                {' '}
+                                — note: {item.note}
                               </span>
                             )}
                           </li>

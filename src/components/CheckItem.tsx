@@ -7,9 +7,11 @@ interface CheckItemProps {
   index: number
   disabled?: boolean
   caveat?: string | null
+  note?: string | null
   onToggle: () => void
   onEdit?: () => void
   onCaveat?: () => void
+  onNote?: () => void
 }
 
 export function CheckItem({
@@ -18,9 +20,11 @@ export function CheckItem({
   index,
   disabled,
   caveat,
+  note,
   onToggle,
   onEdit,
   onCaveat,
+  onNote,
 }: CheckItemProps) {
   const [animating, setAnimating] = useState(false)
 
@@ -69,7 +73,23 @@ export function CheckItem({
           />
         </svg>
       </div>
-      <span className="check-item__text">{text}</span>
+      <span className="check-item__main">
+        <span className="check-item__text">{text}</span>
+        {note ? <span className="check-item__note-text">{note}</span> : null}
+      </span>
+      {onNote && (
+        <button
+          type="button"
+          className={`check-item__note${note ? ' check-item__note--set' : ''}`}
+          title={note ? 'Edit note' : 'Add a note'}
+          onClick={e => {
+            e.stopPropagation()
+            onNote()
+          }}
+        >
+          Note
+        </button>
+      )}
       {onCaveat && (
         <button
           className={`check-item__caveat${caveat ? ' check-item__caveat--set' : ''}`}

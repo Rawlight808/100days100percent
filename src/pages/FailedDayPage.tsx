@@ -22,6 +22,7 @@ export function FailedDayPage() {
 
   if (phase === 'setup') return <Navigate to="/setup" replace />
   if (phase === 'select') return <Navigate to="/select" replace />
+  if (phase === 'scheduled') return <Navigate to="/start" replace />
   if (phase === 'ready') return <Navigate to="/dashboard" replace />
 
   const day = failedDay ?? 1

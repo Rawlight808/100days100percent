@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatShortChallengeDate } from '../lib/challengeDay'
 import { useWeeklyGoals, type WeeklyGoalView } from '../hooks/useWeeklyGoals'
 import './WeeklyGoals.css'
@@ -6,6 +6,8 @@ import './WeeklyGoals.css'
 interface WeeklyGoalsProps {
   userId: string
   today: string
+  /** Before Day 1: add and remove goals, but don't check them off or remind. */
+  beforeStart?: boolean
 }
 
 const PERIOD_WORDS = [
@@ -25,7 +27,11 @@ function periodName(number: number): string {
   return PERIOD_WORDS[number - 1] ?? `Period ${number}`
 }
 
-function goalStatus(goal: WeeklyGoalView): string {
+function goalStatus(goal: WeeklyGoalView, beforeStart: boolean): string {
+  if (beforeStart) {
+    const end = formatShortChallengeDate(goal.window.end)
+    return `Once between Day 1 and ${end}, then once every 7 days`
+  }
   const name = periodName(goal.window.index + 1)
   const end = formatShortChallengeDate(goal.window.end)
   const next = formatShortChallengeDate(goal.window.resetsOn)
@@ -37,7 +43,7 @@ function goalStatus(goal: WeeklyGoalView): string {
   return `${name} 7 days · do this once by ${end}`
 }
 
-export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
+export function WeeklyGoals({ userId, today, beforeStart = false }: WeeklyGoalsProps) {
   const {
     goals,
     dueGoals,
@@ -50,10 +56,17 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
     toggleGoal,
     removeGoal,
     requestPermission,
-  } = useWeeklyGoals(userId, today)
+    setAnchorDay,
+  } = useWeeklyGoals(userId, today, { notify: !beforeStart })
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!beforeStart) return
+    // Move each goal's 7-day clock onto the chosen Day 1 before the run starts.
+    void setAnchorDay(today)
+  }, [beforeStart, today, setAnchorDay])
 
   const doneCount = goals.filter(goal => goal.done).length
   const progressPct = goals.length > 0 ? (doneCount / goals.length) * 100 : 0
@@ -81,9 +94,14 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
     <section className="weekly-goals" aria-label="Weekly goals">
       <div className="weekly-goals__header">
         <h2 className="weekly-goals__title">Weekly goals</h2>
-        {goals.length > 0 && (
+        {goals.length > 0 && !beforeStart && (
           <p className="weekly-goals__count">
             {doneCount} of {goals.length} done for these 7 days
+          </p>
+        )}
+        {goals.length > 0 && beforeStart && (
+          <p className="weekly-goals__count">
+            {goals.length} {goals.length === 1 ? 'goal' : 'goals'}
           </p>
         )}
       </div>
@@ -94,7 +112,7 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
         </p>
       )}
 
-      {!schemaMissing && goals.length > 0 && (
+      {!schemaMissing && !beforeStart && goals.length > 0 && (
         <div
           className="weekly-goals__bar"
           role="progressbar"
@@ -107,7 +125,7 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
         </div>
       )}
 
-      {!schemaMissing && dueGoals.length > 0 && (
+      {!schemaMissing && !beforeStart && dueGoals.length > 0 && (
         <div className="weekly-goals__alert" role="status">
           <p>
             {dueGoals.length === 1
@@ -126,7 +144,7 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
         </div>
       )}
 
-      {!schemaMissing && !loading && goals.length > 0 && doneCount === goals.length && (
+      {!schemaMissing && !beforeStart && !loading && goals.length > 0 && doneCount === goals.length && (
         <p className="weekly-goals__clear">
           Done for these 7 days. Each goal is due again when the next 7 days start.
         </p>
@@ -137,24 +155,26 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
       {!schemaMissing && !loading && (
         <ul className="weekly-goals__list">
           {goals.map(goal => {
-            const due = !goal.done && goal.window.inReminderStretch
+            const due = !beforeStart && !goal.done && goal.window.inReminderStretch
             return (
               <li
                 key={goal.id}
-                className={`weekly-goals__item${goal.done ? ' weekly-goals__item--done' : ''}${due ? ' weekly-goals__item--due' : ''}`}
+                className={`weekly-goals__item${goal.done && !beforeStart ? ' weekly-goals__item--done' : ''}${due ? ' weekly-goals__item--due' : ''}`}
               >
-                <button
-                  type="button"
-                  className={`weekly-goals__check${goal.done ? ' weekly-goals__check--on' : ''}`}
-                  aria-pressed={goal.done}
-                  aria-label={`${goal.done ? 'Undo this 7-day block' : 'Mark these 7 days done'}: ${goal.text}`}
-                  disabled={busyId === goal.id}
-                  onClick={() => void toggleGoal(goal.id)}
-                />
+                {!beforeStart && (
+                  <button
+                    type="button"
+                    className={`weekly-goals__check${goal.done ? ' weekly-goals__check--on' : ''}`}
+                    aria-pressed={goal.done}
+                    aria-label={`${goal.done ? 'Undo this 7-day block' : 'Mark these 7 days done'}: ${goal.text}`}
+                    disabled={busyId === goal.id}
+                    onClick={() => void toggleGoal(goal.id)}
+                  />
+                )}
                 <div className="weekly-goals__copy">
                   <p className="weekly-goals__text">{goal.text}</p>
-                  <p className="weekly-goals__meta">{goalStatus(goal)}</p>
-                  {goal.periods.length > 0 && (
+                  <p className="weekly-goals__meta">{goalStatus(goal, beforeStart)}</p>
+                  {!beforeStart && goal.periods.length > 0 && (
                     <ol className="weekly-goals__periods">
                       {goal.periods.map(period => {
                         const state = period.done ? 'done' : period.missed ? 'missed' : 'open'
@@ -222,9 +242,9 @@ export function WeeklyGoals({ userId, today }: WeeklyGoalsProps) {
 
       {!schemaMissing && !loading && (
         <p className="weekly-goals__hint">
-          Add as many as you want. Do each one once in the first 7 days, then once in the next
-          7 days, and so on. On the last 3 days of a block, you&apos;ll be reminded if it isn&apos;t
-          done.
+          {beforeStart
+            ? 'Optional. Add as many as you want. Each one starts on Day 1 and is due once every 7 days from that day. You check them off once the run begins.'
+            : "Add as many as you want. Do each one once in the first 7 days, then once in the next 7 days, and so on. On the last 3 days of a block, you'll be reminded if it isn't done."}
         </p>
       )}
     </section>

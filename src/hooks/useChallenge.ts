@@ -8,6 +8,7 @@ import {
   isPastFailDeadline,
   isSingleOvernightMiss,
   msUntilNextChallengeClock,
+  isValidStartDate,
   naturalToday,
   projectedFinishDate,
   shouldHoldIncompleteDay,
@@ -37,6 +38,8 @@ export interface Item {
   is_top_twelve: boolean
   position: number
   caveat?: string | null
+  /** Personal reminder about this rule. Does not expire or spend a caveat. */
+  note?: string | null
   /** Life area from guided setup (nullable for legacy lists). */
   area?: string | null
   /** 'do' | 'stop' from guided setup (nullable for legacy lists). */
@@ -134,7 +137,7 @@ export interface Streak {
   advanced_to?: string | null
 }
 
-export type Phase = 'loading' | 'setup' | 'select' | 'ready' | 'failed'
+export type Phase = 'loading' | 'setup' | 'select' | 'scheduled' | 'ready' | 'failed'
 
 /**
  * Start of the caveat week (the Sunday on/before `today`). An attached caveat
@@ -183,8 +186,8 @@ function isStreakBroken(
   now = new Date(),
 ): boolean {
   if (!activeChallenge) return false
-  // The run does not start until daily habits are locked in.
-  if (!streak.streak_start_date) return false
+  // Null means Day 1 has not been chosen. A future date means the run is waiting.
+  if (!streak.streak_start_date || natural < streak.streak_start_date) return false
   const pastFirstDay = natural > streak.streak_start_date
   const missedPreviousDay = streak.last_perfect_date !== naturalYesterday
   const notCompletedToday = streak.last_perfect_date !== natural
@@ -202,6 +205,16 @@ function isStreakBroken(
     return false
   }
   return true
+}
+
+/** Day 1 is the chosen start date. Until that challenge day, nothing counts. */
+function challengeHasBegun(streak: Streak | null | undefined, natural = naturalToday()): boolean {
+  const start = streak?.streak_start_date
+  return start != null && start <= natural
+}
+
+function relationMissing(error: { code?: string } | null | undefined): boolean {
+  return error?.code === 'PGRST205' || error?.code === '42P01'
 }
 
 /** Survive route remounts so "Start Day N+1" doesn't briefly fall back to natural. */
@@ -314,8 +327,12 @@ export function useChallenge() {
     if (items.length < REQUIRED_ITEMS) return 'setup'
     const n = topTwelve.length
     if (n < MIN_TOP || n > MAX_TOP) return 'select'
+    const start = streak?.streak_start_date ?? null
+    // Habits can be locked before Day 1. The checklist stays closed until the
+    // chosen challenge day, which may be after today.
+    if (!start || start > naturalToday()) return 'scheduled'
     return 'ready'
-  }, [loading, items.length, topTwelve.length, failedDay])
+  }, [loading, items.length, topTwelve.length, failedDay, streak])
 
   const displayDay = useMemo((): { day: number; completedToday: boolean } => {
     if (!streak) return { day: 1, completedToday: false }
@@ -514,30 +531,10 @@ export function useChallenge() {
     setTodayLog(log)
     todayLogRef.current = log
 
-    if (
-      s &&
-      activeChallenge &&
-      s.current_day === 0 &&
-      s.last_perfect_date == null &&
-      (s.streak_start_date == null || s.streak_start_date === naturalNow)
-    ) {
-      // Habits are locked in but no counted day has happened yet. The 100-day
-      // clock starts on this first real challenge day — not on earlier visits
-      // spent writing or picking the list.
-      if (s.streak_start_date !== naturalNow) {
-        await supabase
-          .from('streaks')
-          .update({
-            streak_start_date: naturalNow,
-            failed_day: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq('user_id', userId)
-        if (seq !== loadSeqRef.current) return
-        s = { ...s, streak_start_date: naturalNow, failed_day: null }
-      }
-      setFailedDay(null)
-    } else if (s && activeChallenge && isStreakBroken(s, naturalNow, naturalYday, activeChallenge)) {
+    // Day 1 is whatever date the user picks after habits and weekly goals.
+    // Do not write streak_start_date here — a null or future date is waiting,
+    // not a missed day.
+    if (s && activeChallenge && isStreakBroken(s, naturalNow, naturalYday, activeChallenge)) {
       const day = computeFailedDay(s, naturalYday)
       setFailedDay(day)
       if (s.failed_day !== day) {
@@ -884,29 +881,77 @@ export function useChallenge() {
         .eq('user_id', user.id)
         .order('position')
       if (data) setItems(data as Item[])
+      // Daily habits are locked here. Day 1 is chosen on the next screen, so
+      // this does not write streak_start_date.
+    },
+    [user],
+  )
 
-      // The 100-day clock starts here — not when the 100 list is written.
-      const { data: started } = await supabase
+  const scheduleStart = useCallback(
+    async (date: string): Promise<{ ok: boolean; error?: string; warning?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const natural = naturalToday()
+      if (!isValidStartDate(date, natural)) {
+        return { ok: false, error: 'Pick today or a later day, within the next year.' }
+      }
+      const current = streakRef.current
+      if (current?.last_perfect_date) {
+        return { ok: false, error: 'This run has already started.' }
+      }
+      if (current?.streak_start_date && current.streak_start_date <= natural) {
+        return { ok: false, error: 'This run has already started.' }
+      }
+
+      const { data, error } = await supabase
         .from('streaks')
-        .update({
-          current_day: 0,
-          last_perfect_date: null,
-          streak_start_date: today,
-          failed_day: null,
-          advanced_to: null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('user_id', user.id)
+        .upsert(
+          {
+            user_id: user.id,
+            current_day: 0,
+            last_perfect_date: null,
+            streak_start_date: date,
+            failed_day: null,
+            advanced_to: null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' },
+        )
         .select()
         .single()
-      if (started) {
-        setStreak(started as Streak)
-        streakRef.current = started as Streak
+      if (error) return { ok: false, error: 'Could not save your start day.' }
+
+      let warning: string | undefined
+      const goals = await supabase
+        .from('weekly_goals')
+        .update({ started_on: date })
+        .eq('user_id', user.id)
+      if (goals.error && !relationMissing(goals.error)) {
+        warning = 'Your start day is saved, but weekly goals could not be moved to that day.'
+      } else if (!goals.error) {
+        const cleared = await supabase
+          .from('weekly_goal_completions')
+          .delete()
+          .eq('user_id', user.id)
+        if (cleared.error && !relationMissing(cleared.error)) {
+          warning = 'Your start day is saved, but weekly goal progress could not be reset.'
+        }
       }
+
+      const next: Streak = (data as Streak | null) ?? {
+        user_id: user.id,
+        current_day: 0,
+        last_perfect_date: null,
+        streak_start_date: date,
+        failed_day: null,
+        advanced_to: null,
+      }
+      setStreak(next)
+      streakRef.current = next
       setAdvancedTo(null)
       setFailedDay(null)
+      return warning ? { ok: true, warning } : { ok: true }
     },
-    [user, today],
+    [user, setAdvancedTo],
   )
 
   const saveJournal = useCallback(
@@ -999,6 +1044,37 @@ export function useChallenge() {
     [user, today, yesterday],
   )
 
+  const updateItemNote = useCallback(
+    async (itemId: string, note: string | null): Promise<{ ok: boolean; error?: string }> => {
+      if (!user) return { ok: false, error: 'You must be signed in.' }
+      const trimmed = note?.trim() ?? ''
+      if (trimmed.length > 500) {
+        return { ok: false, error: 'Keep the note under 500 characters.' }
+      }
+      const value = trimmed.length > 0 ? trimmed : null
+      const { error } = await supabase
+        .from('items')
+        .update({ note: value })
+        .eq('id', itemId)
+        .eq('user_id', user.id)
+      if (error) {
+        const missing =
+          error.code === 'PGRST204' || /column ['"]?note['"]?/i.test(error.message ?? '')
+        return {
+          ok: false,
+          error: missing
+            ? 'Notes need a database update. Run migration 017 in Supabase, then reload.'
+            : 'Could not save this note. Please try again.',
+        }
+      }
+      setItems(prev =>
+        prev.map(item => (item.id === itemId ? { ...item, note: value } : item)),
+      )
+      return { ok: true }
+    },
+    [user],
+  )
+
   const updateItemText = useCallback(
     async (itemId: string, newText: string) => {
       if (!user) return
@@ -1087,6 +1163,9 @@ export function useChallenge() {
     ): Promise<{ ok: boolean; error?: string }> => {
       if (!user || !streakRef.current) {
         return { ok: false, error: 'You must be signed in.' }
+      }
+      if (!challengeHasBegun(streakRef.current)) {
+        return { ok: false, error: 'Day 1 has not started yet.' }
       }
       const s = streakRef.current
       const runStart = s.streak_start_date
@@ -1304,6 +1383,7 @@ export function useChallenge() {
 
   const advanceDay = useCallback(async () => {
     if (!user) return
+    if (!challengeHasBegun(streakRef.current)) return
     // Only advance from the natural day — prevents chaining advances.
     if (today > naturalToday()) return
     const next = addDaysToDateStr(today, 1)
@@ -1337,6 +1417,7 @@ export function useChallenge() {
 
   const takeSabbath = useCallback(async () => {
     if (!user) return
+    if (!challengeHasBegun(streakRef.current)) return
     if (!streak) return
     if (streak.current_day < SABBATH_UNLOCK_DAY) return
     if (sabbathThisWeek) return
@@ -1415,6 +1496,9 @@ export function useChallenge() {
     async (note: string): Promise<{ ok: boolean; error?: string }> => {
       if (!user || !streak) {
         return { ok: false, error: 'You must be signed in.' }
+      }
+      if (!challengeHasBegun(streakRef.current)) {
+        return { ok: false, error: 'Day 1 has not started yet.' }
       }
       if (displayDay.completedToday) {
         return { ok: false, error: 'Today is already complete.' }
@@ -1510,6 +1594,9 @@ export function useChallenge() {
       if (!user || !streakRef.current) {
         return { ok: false, error: 'You must be signed in.' }
       }
+      if (!challengeHasBegun(streakRef.current)) {
+        return { ok: false, error: 'Day 1 has not started yet.' }
+      }
       const s = streakRef.current
       if (s.last_perfect_date === today || displayDay.completedToday) {
         return { ok: false, error: 'Today is already complete.' }
@@ -1575,6 +1662,7 @@ export function useChallenge() {
   const toggleItem = useCallback(
     async (itemId: string): Promise<boolean> => {
       if (!user) return false
+      if (!challengeHasBegun(streakRef.current)) return false
 
       let log = todayLogRef.current
       if (!log) {
@@ -1676,7 +1764,9 @@ export function useChallenge() {
     removeSetupItem,
     updateSetupItem,
     saveTopTwelve,
+    scheduleStart,
     updateItemText,
+    updateItemNote,
     updateItemCaveat,
     caveatStatus,
     exceptionStatus,
