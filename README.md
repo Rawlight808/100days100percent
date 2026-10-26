@@ -79,8 +79,9 @@ write their own rows.
 Guided setup needs `012_goals.sql` (`goals` table plus `items.area` /
 `items.kind`) and `013_multiple_goals.sql` (more than one goal per area).
 Caveats need `014_ensure_caveat_events.sql` (`caveat_events` table). Fasting
-days need `015_fasting.sql` (`daily_logs.is_fasting`). Apply each in the SQL
-editor if you have not already.
+days need `015_fasting.sql` (`daily_logs.is_fasting`). Weekly goals need
+`016_weekly_goals.sql` (`weekly_goals` and `weekly_goal_completions`). Apply
+each in the SQL editor if you have not already.
 
 ## Scripts
 

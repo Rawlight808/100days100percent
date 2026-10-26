@@ -148,6 +148,23 @@ export function AppNav({
             </div>
 
             <div className="app-nav__menu-section">
+              <h3 className="app-nav__menu-heading">Weekly goals</h3>
+              <ul className="app-nav__rules-list">
+                <li>Add as many as you want. They sit beside the daily list.</li>
+                <li>
+                  Each goal’s week starts the day you add it and lasts 7 days.
+                  A goal added Tuesday runs through Monday, then opens again
+                  the next Tuesday.
+                </li>
+                <li>Mark it done once in that window. When the week resets, it is open again.</li>
+                <li>
+                  On the last 3 days, if it still isn’t done, the app reminds
+                  you until you finish it or the week resets.
+                </li>
+              </ul>
+            </div>
+
+            <div className="app-nav__menu-section">
               <h3 className="app-nav__menu-heading">Exceptions</h3>
               <ul className="app-nav__rules-list">
                 <li>

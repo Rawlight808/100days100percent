@@ -55,6 +55,65 @@ export function formatChallengeDate(dateStr: string): string {
   })
 }
 
+/** Short local date, e.g. "Tue, Oct 13". */
+export function formatShortChallengeDate(dateStr: string): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  })
+}
+
+/** Length of a weekly-goal window. Not a Sunday–Saturday calendar week. */
+export const WEEKLY_GOAL_WINDOW_DAYS = 7
+
+/** Reminders start this many days before the window resets. */
+export const WEEKLY_GOAL_REMINDER_DAYS = 3
+
+export interface WeeklyGoalWindow {
+  /** First day of this goal's current window (inclusive). */
+  start: string
+  /** Last day of this goal's current window (inclusive). */
+  end: string
+  /** 0 for the week the goal was added, then 1, 2, … */
+  index: number
+  /** 1 on the start day through 7 on the day before reset. */
+  dayInWindow: number
+  /** Days remaining in the window, including today. 1 on the final day. */
+  daysLeft: number
+  /** True on days 5–7: the last three days before the window resets. */
+  inReminderStretch: boolean
+  /** The first day of the next window. */
+  resetsOn: string
+}
+
+/**
+ * Rolling 7-day window anchored to `startedOn`, the day the goal was added.
+ * A goal added Tuesday covers Tuesday through Monday, then opens again the
+ * next Tuesday. Completion is stored per `start`, so a reset clears progress.
+ */
+export function weeklyGoalWindow(startedOn: string, today: string): WeeklyGoalWindow {
+  const elapsed = Math.max(0, daysBetween(startedOn, today))
+  const index = Math.floor(elapsed / WEEKLY_GOAL_WINDOW_DAYS)
+  const start = addDaysToDateStr(startedOn, index * WEEKLY_GOAL_WINDOW_DAYS)
+  const end = addDaysToDateStr(start, WEEKLY_GOAL_WINDOW_DAYS - 1)
+  const dayInWindow = Math.min(
+    WEEKLY_GOAL_WINDOW_DAYS,
+    Math.max(1, daysBetween(start, today) + 1),
+  )
+  const daysLeft = WEEKLY_GOAL_WINDOW_DAYS - dayInWindow + 1
+  return {
+    start,
+    end,
+    index,
+    dayInWindow,
+    daysLeft,
+    inReminderStretch: dayInWindow > WEEKLY_GOAL_WINDOW_DAYS - WEEKLY_GOAL_REMINDER_DAYS,
+    resetsOn: addDaysToDateStr(start, WEEKLY_GOAL_WINDOW_DAYS),
+  }
+}
+
 /**
  * Calendar date of Day 100, counting from the run start. Exception days freeze
  * the streak and do not count, so each one pushes the finish out by one day.

@@ -14,6 +14,7 @@ import { HyperDriveModal } from '../components/HyperDriveModal'
 import { JournalCalendar } from '../components/JournalCalendar'
 import { JournalEntryModal } from '../components/JournalEntryModal'
 import { AppNav } from '../components/AppNav'
+import { WeeklyGoals } from '../components/WeeklyGoals'
 import { formatChallengeDate } from '../lib/challengeDay'
 import './DashboardPage.css'
 
@@ -284,6 +285,8 @@ export function DashboardPage() {
           </ul>
         </section>
       )}
+
+      {user && <WeeklyGoals userId={user.id} today={today} />}
 
       <div className="dashboard__progress-section">
         <div className="dashboard__progress-label">
