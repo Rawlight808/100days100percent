@@ -1,4 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
+import {
+  askNotificationPermission,
+  clearDailyReminder,
+  isNativeApp,
+  readNotificationPermission,
+  setDailyReminder,
+} from '../lib/nativeApp'
 
 const STORAGE_KEY = 'hundred-days-reminder'
 
@@ -25,16 +32,22 @@ export function useReminder(active = true) {
     typeof Notification !== 'undefined' ? Notification.permission : 'denied',
   )
 
+  useEffect(() => {
+    void readNotificationPermission().then(result => {
+      setPermission(result === 'unsupported' ? 'denied' : result)
+    })
+  }, [])
+
   const save = useCallback((next: ReminderSettings) => {
     setSettings(next)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
   }, [])
 
   const requestPermission = useCallback(async () => {
-    if (typeof Notification === 'undefined') return 'denied' as const
-    const result = await Notification.requestPermission()
-    setPermission(result)
-    return result
+    const result = await askNotificationPermission()
+    const next: NotificationPermission = result === 'unsupported' ? 'denied' : result
+    setPermission(next)
+    return next
   }, [])
 
   const enable = useCallback(
@@ -53,9 +66,24 @@ export function useReminder(active = true) {
 
   const disable = useCallback(() => {
     save({ ...settings, enabled: false })
+    if (isNativeApp()) void clearDailyReminder()
   }, [settings, save])
 
   useEffect(() => {
+    if (!isNativeApp()) return
+    if (!settings.enabled) {
+      void clearDailyReminder()
+      return
+    }
+    if (!active) {
+      void clearDailyReminder()
+      return
+    }
+    void setDailyReminder(settings.hour, settings.minute)
+  }, [active, settings.enabled, settings.hour, settings.minute])
+
+  useEffect(() => {
+    if (isNativeApp()) return
     if (!active || !settings.enabled || permission !== 'granted') return
 
     const check = () => {

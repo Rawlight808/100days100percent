@@ -1,7 +1,11 @@
 import { useEffect, useState, useCallback } from 'react'
 import type { ReactNode } from 'react'
+import type { PluginListenerHandle } from '@capacitor/core'
+import { App as CapApp } from '@capacitor/app'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { isNativeApp } from '../lib/nativeApp'
+import { authRedirectOrigin } from '../lib/site'
 import { AuthContext } from './auth-context'
 
 /** Remove any app state cached in localStorage (per-user keys + reminder). */
@@ -53,7 +57,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     document.addEventListener('visibilitychange', recheckSession)
     window.addEventListener('online', recheckSession)
 
+    let cancelled = false
+    let appListener: PluginListenerHandle | undefined
+    if (isNativeApp()) {
+      void CapApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) recheckSession()
+      }).then(handle => {
+        if (cancelled) void handle.remove()
+        else appListener = handle
+      })
+    }
+
     return () => {
+      cancelled = true
+      void appListener?.remove()
       subscription.unsubscribe()
       document.removeEventListener('visibilitychange', recheckSession)
       window.removeEventListener('online', recheckSession)
@@ -68,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${authRedirectOrigin()}/dashboard`,
       },
     })
 

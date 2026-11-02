@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
+import { isNativeApp } from '../lib/nativeApp'
 import { useReminder } from '../hooks/useReminder'
 import { useCoachSharing } from '../hooks/useCoachSharing'
 import { DAY_ROLLOVER_HOUR } from '../lib/challengeDay'
@@ -195,7 +197,9 @@ export function AppNav({
                 {notifPerm === 'granted'
                   ? 'Active: midnight warning, late-night alerts, and morning reminders until noon if today is incomplete.'
                   : notifPerm === 'denied'
-                    ? 'Enable notifications in browser settings for deadline alerts through noon.'
+                    ? isNativeApp()
+                      ? 'Notifications are off. Turn them on in Settings for 100 Days.'
+                      : 'Enable notifications in browser settings for deadline alerts through noon.'
                     : 'Allow notifications when prompted — you will get a midnight warning, late-night alerts, and morning reminders until noon.'}
               </p>
             </div>
@@ -204,7 +208,9 @@ export function AppNav({
               <h3 className="app-nav__menu-heading">Daily Reminder</h3>
               {notifPerm === 'denied' ? (
                 <p className="app-nav__muted">
-                  Notifications are blocked. Enable them in your browser settings.
+                  {isNativeApp()
+                    ? 'Notifications are off. Turn them on in Settings for 100 Days.'
+                    : 'Notifications are blocked. Enable them in your browser settings.'}
                 </p>
               ) : reminder.enabled ? (
                 <div className="app-nav__reminder-active">
@@ -316,8 +322,8 @@ export function AppNav({
               ) : (
                 <>
                   <p className="app-nav__muted">
-                    This erases your 100 items, daily logs, streak, and journal
-                    entries — permanently. Are you sure?
+                    This erases your list, notes, weekly goals, daily logs, streak,
+                    and journal entries — permanently. Are you sure?
                   </p>
                   {deleteError && (
                     <p className="app-nav__delete-error">{deleteError}</p>
@@ -347,6 +353,12 @@ export function AppNav({
                   </div>
                 </>
               )}
+            </div>
+
+            <div className="app-nav__menu-section">
+              <Link className="app-nav__text-link" to="/privacy" onClick={() => setMenuOpen(false)}>
+                Privacy policy
+              </Link>
             </div>
           </div>
         )}

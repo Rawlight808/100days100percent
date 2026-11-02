@@ -9,6 +9,7 @@ import { StartPage } from './pages/StartPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { FailedDayPage } from './pages/FailedDayPage'
 import { AdminPage } from './pages/AdminPage'
+import { PrivacyPage } from './pages/PrivacyPage'
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/auth" element={<AuthPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
           <Route
             path="/setup"
             element={

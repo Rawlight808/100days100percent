@@ -83,6 +83,11 @@
   line-height: 1.5;
 }
 
+.app-nav__text-link {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.85rem;
+}
+
 .app-nav__reminder-active {
   display: flex;
   align-items: center;

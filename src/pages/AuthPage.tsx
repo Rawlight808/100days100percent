@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import './AuthPage.css'
 
@@ -71,7 +71,7 @@ export function AuthPage() {
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">3</span>
-            <span>Choose 10–20 that matter most</span>
+            <span>Choose 10–25 that matter most</span>
           </div>
           <div className="auth__rule">
             <span className="auth__rule-num">4</span>
@@ -146,6 +146,9 @@ export function AuthPage() {
             {submitting ? '…' : mode === 'signup' ? 'Create Account' : 'Sign In'}
           </button>
         </form>
+        <p className="auth__legal">
+          <Link to="/privacy">Privacy policy</Link>
+        </p>
       </div>
     </div>
   )

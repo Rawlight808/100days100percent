@@ -81,13 +81,35 @@ export function CheckItem({
         <button
           type="button"
           className={`check-item__note${note ? ' check-item__note--set' : ''}`}
+          aria-label={note ? 'Edit note' : 'Add a note'}
           title={note ? 'Edit note' : 'Add a note'}
           onClick={e => {
             e.stopPropagation()
             onNote()
           }}
         >
-          Note
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path
+              d="M3.5 2.5h6.2L12.5 5.3v8.2h-9z"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+              fill={note ? 'currentColor' : 'none'}
+              fillOpacity={note ? 0.22 : 0}
+            />
+            <path
+              d="M9.5 2.6V5.5h2.9"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinejoin="round"
+            />
+            <path
+              d="M5.5 8.2h5M5.5 10.6h3.2"
+              stroke="currentColor"
+              strokeWidth="1.3"
+              strokeLinecap="round"
+            />
+          </svg>
         </button>
       )}
       {onCaveat && (

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/auth-context'
 import './LandingPage.css'
 
@@ -28,7 +28,9 @@ export function LandingPage() {
             Get Started
           </button>
         </div>
-
+        <p className="landing__legal">
+          <Link to="/privacy">Privacy policy</Link>
+        </p>
       </div>
     </div>
   )

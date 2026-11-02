@@ -28,7 +28,7 @@ export const REQUIRED_ITEMS = 100
 export const MAX_ITEMS = 300
 /** Daily habits to track: pick between min and max for the 100-day run */
 export const MIN_TOP = 10
-export const MAX_TOP = 20
+export const MAX_TOP = 25
 export const REQUIRED_DAYS = 100
 
 export interface Item {

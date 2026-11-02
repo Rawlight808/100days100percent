@@ -95,13 +95,35 @@ function SortableRow({
       <button
         type="button"
         className={`select__item-note-btn${item.note ? ' select__item-note-btn--set' : ''}`}
+        aria-label={item.note ? 'Edit note' : 'Add a note'}
         title={item.note ? 'Edit note' : 'Add a note'}
         onClick={e => {
           e.stopPropagation()
           onOpenNote(item.id)
         }}
       >
-        Note
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path
+            d="M3.5 2.5h6.2L12.5 5.3v8.2h-9z"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+            fill={item.note ? 'currentColor' : 'none'}
+            fillOpacity={item.note ? 0.22 : 0}
+          />
+          <path
+            d="M9.5 2.6V5.5h2.9"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M5.5 8.2h5M5.5 10.6h3.2"
+            stroke="currentColor"
+            strokeWidth="1.3"
+            strokeLinecap="round"
+          />
+        </svg>
       </button>
       <button
         className={`select__item-caveat${item.caveat ? ' select__item-caveat--set' : ''}`}
@@ -248,7 +270,7 @@ export function SelectPage() {
         <p className="select__subtitle">
           Pick between {MIN_TOP} and {MAX_TOP} items from your list — your daily
           commitment for 100 days. Drag the dots to reorder (hold then drag on
-          phone), tap the pencil to edit, tap Note to write about a rule, or add a caveat.
+          phone), tap the pencil to edit, tap the note icon to write about a rule, or add a caveat.
           Continuing does not start the run. Next you can add weekly goals and
           choose the day Day 1 begins.
         </p>

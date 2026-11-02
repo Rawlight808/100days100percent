@@ -6,6 +6,13 @@ import {
   type WeeklyGoalPeriod,
   type WeeklyGoalWindow,
 } from '../lib/challengeDay'
+import {
+  askNotificationPermission,
+  isNativeApp,
+  readNotificationPermission,
+  showDeviceNotification,
+  syncWeeklyReminder,
+} from '../lib/nativeApp'
 
 const FIRED_PREFIX = 'hundred-days:weekly-goal-fired'
 
@@ -143,26 +150,37 @@ export function useWeeklyGoals(
   )
 
   useEffect(() => {
-    if (!notify) return
-    if (!userId || dueGoals.length === 0) return
-    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
+    if (isNativeApp()) {
+      const daysLeft = dueGoals.reduce((min, goal) => Math.min(min, goal.window.daysLeft), 7)
+      void syncWeeklyReminder(notify && dueGoals.length > 0, daysLeft)
+    }
+    if (!notify || !userId || dueGoals.length === 0) return
     const key = firedKey(userId, today)
     if (localStorage.getItem(key) === '1') return
-    localStorage.setItem(key, '1')
     const title = dueGoals.length === 1 ? 'Weekly goal still open' : 'Weekly goals still open'
-    new Notification(title, { body: reminderBody(dueGoals), icon: '/favicon.svg' })
+    const body = reminderBody(dueGoals)
+    void (async () => {
+      if (isNativeApp()) {
+        const perm = await readNotificationPermission()
+        if (perm !== 'granted') return
+      } else if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+        return
+      }
+      if (localStorage.getItem(key) === '1') return
+      localStorage.setItem(key, '1')
+      await showDeviceNotification(title, body)
+    })()
   }, [notify, userId, today, dueGoals])
 
   const requestPermission = useCallback(async () => {
-    if (typeof Notification === 'undefined') return 'unsupported' as const
-    const result = await Notification.requestPermission()
+    const result = await askNotificationPermission()
     setPermission(result)
     if (result === 'granted' && userId && dueGoals.length > 0) {
       const key = firedKey(userId, today)
       if (localStorage.getItem(key) !== '1') {
         localStorage.setItem(key, '1')
         const title = dueGoals.length === 1 ? 'Weekly goal still open' : 'Weekly goals still open'
-        new Notification(title, { body: reminderBody(dueGoals), icon: '/favicon.svg' })
+        await showDeviceNotification(title, reminderBody(dueGoals))
       }
     }
     return result

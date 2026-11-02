@@ -163,6 +163,16 @@
   cursor: not-allowed;
 }
 
+.auth__legal {
+  margin: 1rem 0 0;
+  text-align: center;
+  font-size: 0.85rem;
+}
+
+.auth__legal a {
+  color: rgba(255, 255, 255, 0.4);
+}
+
 @media (max-width: 640px) {
   .auth__title {
     font-size: 2rem;

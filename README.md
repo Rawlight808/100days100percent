@@ -15,7 +15,7 @@ on Vercel.
    100 days to get closer — including things to stop.
 2. **Master list** — those 100-day actions become your list (at least 100,
    up to 300).
-3. **Select** — choose 10–20 of them as your daily list.
+3. **Select** — choose 10–25 of them as your daily list.
 4. **Run** — check off all of them every day. A day rolls over at **4:00 AM**
    local time. If you forget, you have until **noon** the next day to finish
    before the streak resets to Day 1.
@@ -95,6 +95,39 @@ editor if you have not already.
 
 ## Installing as an app
 
-The app ships a web manifest and is installable on mobile/desktop via the
-browser's **Add to Home Screen** / **Install** option, where it runs
-full-screen with safe-area handling for modern phones.
+The website ships a web manifest and can be added to a phone home screen from
+the browser. The App Store build is the same app inside an iOS shell
+(Capacitor). Android can be added later with `npx cap add android`.
+
+### App Store
+
+The Xcode project lives in `ios/`. Bundle id: `com.hundreddays100percent.app`.
+The name under the icon is **100 Days**. The store name can be **100 Days of 100%**.
+
+```bash
+npm run ios
+```
+
+That builds the web app, copies it into the Xcode project, and opens
+`ios/App/App.xcodeproj`. Xcode downloads the native libraries the first time
+the project opens. If macOS asks whether xcodebuild or Xcode can use the
+keychain, choose Allow. That prompt is only for downloading those libraries.
+
+Then in Xcode:
+
+1. Select the App target, Signing & Capabilities, and choose your Apple Developer team.
+2. Product → Archive, then Distribute App → App Store Connect.
+3. In App Store Connect, set the privacy policy URL to
+   `https://100days100percent.com/privacy` after that page is deployed.
+4. Add screenshots, the support email `rawlight@gmail.com`, and answer the
+   age-rating and privacy questions. The app stores an email address and the
+   words the person writes (goals, list, notes, journal). It does not track
+   people or show ads.
+5. Account deletion is already in the menu. Sign-in is email and password, so
+   Sign in with Apple is not required.
+6. Export compliance: the app only uses standard HTTPS. `Info.plist` marks
+   that it does not use non-exempt encryption.
+
+Confirmation emails from the installed app open
+`https://100days100percent.com/dashboard`. That address needs to stay on the
+Supabase Auth redirect allow list.

@@ -6,6 +6,12 @@ import {
   hoursUntilFailDeadline,
   naturalToday,
 } from '../lib/challengeDay'
+import {
+  askNotificationPermission,
+  isNativeApp,
+  showDeviceNotification,
+  syncDeadlineNotifications,
+} from '../lib/nativeApp'
 
 const FIRED_PREFIX = 'hundred-days:deadline-fired'
 
@@ -22,8 +28,7 @@ function markFired(userId: string, challengeDate: string, slot: string): void {
 }
 
 function showNotification(title: string, body: string) {
-  if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
-  new Notification(title, { body, icon: '/favicon.svg' })
+  void showDeviceNotification(title, body, 4001)
 }
 
 function failDeadlineCopy(hoursLeft: number): string {
@@ -44,11 +49,15 @@ export function useDeadlineNotifications(
   }, [completedToday])
 
   const requestPermission = useCallback(async () => {
-    if (typeof Notification === 'undefined') return 'denied' as const
-    return Notification.requestPermission()
+    const result = await askNotificationPermission()
+    return result === 'unsupported' ? ('denied' as const) : result
   }, [])
 
   useEffect(() => {
+    if (isNativeApp()) {
+      void syncDeadlineNotifications(Boolean(userId && active && !completedToday))
+      return
+    }
     if (!userId || !active || completedToday) return
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
 
